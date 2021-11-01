@@ -18,6 +18,7 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md, README.md
 
 executable athene-engine
+  hs-source-dirs:      src
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
