@@ -21,6 +21,7 @@ executable athene-engine
   hs-source-dirs:      src
   main-is:             Main.hs
   other-modules: 
+    Grouping.Activity,
     UI
   -- other-extensions:
   build-depends:       
