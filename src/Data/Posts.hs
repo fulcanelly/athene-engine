@@ -22,6 +22,11 @@ setupDB :: Connection -> IO ()
 setupDB conn =
     execute conn "CREATE TABLE IF NOT EXISTS channel_posts(title, channel_id, file_id, link)" ()
 
+createNewPost :: Connection -> AdvPost -> IO ()
+createNewPost conn post =
+    execute conn "INSERT * INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where 
+        postEntry = (title post, channelId post, fileId post, link post)
+
 getSpecificAt :: String -> Connection -> IO (Maybe AdvPost)
 getSpecificAt channelId conn=
     listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (channelId :: String)) 
