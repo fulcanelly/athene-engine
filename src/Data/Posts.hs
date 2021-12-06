@@ -53,7 +53,7 @@ updatePost :: AdvPost -> PartialPost -> Connection -> IO ()
 updatePost post update conn = 
     let origin = channelId post in 
     let updater = execute conn "UPDATE channel_posts SET title = ?, channelId = ?, fileId = ?, link = ? WHERE channelId = ?" in
-        updater updateEntry summed origin
+        updater $ updateEntry summed origin
     where 
         updateEntry Post{..} origin = (title, channelId, fileId, link, origin)
         summed = sumP post update
