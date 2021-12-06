@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Data.Posts where
 import Database.SQLite.Simple
@@ -10,21 +11,23 @@ import Data.Maybe (listToMaybe)
 import Data.Functor.Identity
 import Database.SQLite.Simple.FromField
 
+
+type family AnyOrId s a where
+    AnyOrId Identity a = a
+    AnyOrId s a = s a
+
 data AdvPostTemplate f = Post {
-    title :: f String
-    , channelId :: f Integer
-    , fileId :: f Integer -- adv photo 
-    , link :: f String
+    title :: AnyOrId f String
+    , channelId :: AnyOrId f Integer
+    , fileId :: AnyOrId f Integer -- adv photo 
+    , link :: AnyOrId f String
 }
+
 
 type AdvPost = AdvPostTemplate Identity
 
-
-ifield :: FromField a => RowParser (Identity a)
-ifield = Identity <$> field
-
 instance FromRow AdvPost where
-    fromRow = Post <$> ifield <*> ifield <*> ifield <*> ifield
+    fromRow = Post <$> field <*> field <*> field <*> field
 
 
 setupDB :: Connection -> IO ()
@@ -37,7 +40,7 @@ setupDB conn =
 createNewPost :: AdvPost -> Connection -> IO ()
 createNewPost Post{..} conn  =
     execute conn "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
-        postEntry = (runIdentity title, runIdentity channelId, runIdentity fileId, runIdentity link)
+        postEntry = (title, channelId, fileId, link)
 
 getSpecificAt :: String -> Connection -> IO (Maybe AdvPost)
 getSpecificAt channelId conn=
