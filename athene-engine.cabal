@@ -34,6 +34,7 @@ executable athene-engine
     OverloadedStrings
   build-depends:       
     base >=4.7 && <5,
+    either,
     tagsoup,
     profunctors,
     http-conduit,
@@ -41,6 +42,7 @@ executable athene-engine
     HTTP,
     aeson,
     uri-encode,
+    vector,
     containers,
     bytestring,
     http-client,
