@@ -32,7 +32,14 @@ executable athene-engine
     Data.State,
     API.Telegram
   default-extensions:
-    OverloadedStrings
+    OverloadedStrings,
+    StandaloneDeriving,
+    DeriveGeneric,
+    DeriveAnyClass,
+    DerivingStrategies,
+    ScopedTypeVariables,
+    NoMonomorphismRestriction,
+    TypeFamilies
   build-depends:       
     base >=4.7 && <5,
     either,
