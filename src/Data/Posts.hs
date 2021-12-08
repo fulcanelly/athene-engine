@@ -61,23 +61,23 @@ setupDB conn =
         \ title, channel_id, file_id, link, \
         \ FOREIGN KEY(channel_id) REFERENCES channel(id))"
 
-updatePost :: AdvPost -> PartialPost -> Connection -> IO ()
-updatePost post update conn = 
-    let origin = channelId post in 
+updatePost :: Integer -> PartialPost -> Connection -> IO ()
+updatePost origin update conn = do
+    (Just post) <- getSpecificAt origin conn
     let updater = execute conn "UPDATE channel_posts SET title = ?, channelId = ?, fileId = ?, link = ? WHERE channelId = ?" in
-        updater $ updateEntry summed origin
+        updater $ updateEntry (summed post) origin
     where 
         updateEntry Post{..} origin = (title, channelId, fileId, link, origin)
-        summed = sumP post update
+        summed post = sumP post update
 
 createNewPost :: AdvPost -> Connection -> IO ()
 createNewPost Post{..} conn  =
     execute conn "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
         postEntry = (title, channelId, fileId, link)
 
-getSpecificAt :: String -> Connection -> IO (Maybe AdvPost)
+getSpecificAt :: Integer -> Connection -> IO (Maybe AdvPost)
 getSpecificAt channelId conn=
-    listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (channelId :: String))
+    listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (channelId :: Integer))
 
 getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
 getFewExcept count channelId conn =
