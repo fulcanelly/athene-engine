@@ -6,6 +6,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Data.Posts where
 import Database.SQLite.Simple ( execute, query, field, Only(Only), FromRow(..), Connection )
@@ -14,6 +18,8 @@ import Database.SQLite.Simple.FromRow ( RowParser )
 import Data.Functor.Identity ( Identity )
 import Database.SQLite.Simple.FromField ()
 import Data.Maybe ( fromMaybe, listToMaybe )
+import Data.Aeson ( FromJSON, ToJSON )
+import GHC.Generics (Generic)
 
 type family AnyOrId s a where
     AnyOrId Identity a = a
@@ -24,10 +30,16 @@ data AdvPostTemplate f = Post {
     , channelId :: AnyOrId f Integer
     , fileId :: AnyOrId f Integer -- adv photo 
     , link :: AnyOrId f String
-}
+    }
 
 type AdvPost = AdvPostTemplate Identity
 type PartialPost = AdvPostTemplate Maybe
+
+deriving stock instance Show AdvPost
+deriving stock instance Generic AdvPost
+
+deriving anyclass instance ToJSON AdvPost
+deriving anyclass instance FromJSON AdvPost
 
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
