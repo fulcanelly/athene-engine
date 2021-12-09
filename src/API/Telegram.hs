@@ -27,6 +27,9 @@ import GHC.Generics ( Generic )
 import Data.Either.Combinators ( rightToMaybe )
 import Data.Aeson.Types ( parseEither, Parser, Result (Success) )
 import qualified Data.Vector as V
+import Data.Maybe ( fromJust )
+import Data.Functor
+import Control.Monad
 
 data PhotoEntry = PhotoEntry {
     file_id :: String
@@ -73,17 +76,14 @@ token = "2094069209:AAHoBnp3rbASgqR4ZNzgN26MJZWT8jW9xX4"
 
 data Request =
     GetMe |
-    GetUpdates
+    GetUpdates |
+    SendMessage
 
 instance Show Request where
     show GetMe = "getMe"
     show GetUpdates = "getUpdates"
+    show SendMessage = "sendMessage"
 
-execTgGeneric :: [Char] -> [Char] -> IO LB.ByteString
-execTgGeneric token x = openHTTPS $ "https://api.telegram.org/bot" ++ token ++ "/" ++ x
-
-execSimpleTg :: Show a => [Char] -> a -> IO LB.ByteString
-execSimpleTg token req = execTgGeneric token (show req)
 
 pack :: [Char] -> LB.ByteString
 pack = LB.pack
@@ -115,11 +115,10 @@ getKey key = rightToMaybe . parseEither (key .:)
 
 getUpdatesJson :: String -> M.Map String String -> IO (V.Vector Update)
 getUpdatesJson token args = do
-    res <- execArgsTg token GetUpdates args
-    let (Just obj) = J.decode res :: Maybe Object
-    let (Just arr) = (obj `getKey` "result" :: Maybe Array)
+    obj <- execArgsTgJson token GetUpdates args
+    let (Just arr) = (fromJust obj `getKey` "result" :: Maybe Array)
     pure $ V.map (\x -> do
-            let (Success update) = fromJSON x :: Result Update
+            let (Success update) = fromJSON x
             update
         ) arr
 
@@ -135,3 +134,27 @@ forAllUpdates token handler updateId = do
             updateId else lastU v
         getUpdates' Nothing = getUpdatesJson token M.empty
         getUpdates' (Just updateId) = getUpdatesJson token $ M.fromList [("offset", show updateId)]
+
+
+unjust :: (a -> Maybe c) -> a -> c
+unjust x = fromJust . x
+
+
+answer :: String -> Int -> String -> IO Message
+answer token chat text = do
+    res <- execArgsTgJson token SendMessage $ M.fromList [("text", text), ("chat_id", show chat)]
+    let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
+    let (Success msg) = fromJSON obj
+    pure msg
+
+reply :: String -> Int -> Int -> String -> IO Message
+reply token chat msgId text = do
+    res <- execArgsTgJson token SendMessage opts 
+    let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
+    let (Success msg) = fromJSON obj
+    return msg where
+        opts = M.fromList [
+                ("text", text),
+                ("chat_id", show chat),
+                ("reply_to_message_id", show msgId)
+            ]
