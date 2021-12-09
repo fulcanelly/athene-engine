@@ -105,6 +105,11 @@ execArgsTg token req args = do
     where url = "https://api.telegram.org/bot" ++ token ++ "/" ++ show req ++ "?" ++ mapToArgs args
 
 
+execArgsTgJson :: Show a => String -> a -> M.Map String String -> IO (Maybe Object)
+execArgsTgJson token req args = do
+        res <- execArgsTg token req args
+        pure $ J.decode res
+
 getKey :: FromJSON b => Object -> Key -> Maybe b
 getKey key = rightToMaybe . parseEither (key .:)
 
