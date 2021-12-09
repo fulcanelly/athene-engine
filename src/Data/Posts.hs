@@ -35,11 +35,11 @@ data AdvPostTemplate f = Post {
 type AdvPost = AdvPostTemplate Identity
 type PartialPost = AdvPostTemplate Maybe
 
-deriving stock instance Show AdvPost
-deriving stock instance Generic AdvPost
+deriving stock instance Show PartialPost
+deriving stock instance Generic PartialPost
 
-deriving anyclass instance ToJSON AdvPost
-deriving anyclass instance FromJSON AdvPost
+deriving anyclass instance ToJSON PartialPost
+deriving anyclass instance FromJSON PartialPost
 
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
@@ -71,12 +71,12 @@ updatePost origin update conn = do
         summed post = sumP post update
 
 createNewPost :: AdvPost -> Connection -> IO ()
-createNewPost Post{..} conn  =
+createNewPost Post{..} conn =
     execute conn "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
         postEntry = (title, channelId, fileId, link)
 
 getSpecificAt :: Integer -> Connection -> IO (Maybe AdvPost)
-getSpecificAt channelId conn=
+getSpecificAt channelId conn =
     listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (channelId :: Integer))
 
 getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
