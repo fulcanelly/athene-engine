@@ -140,14 +140,18 @@ unjust :: (a -> Maybe c) -> a -> c
 unjust x = fromJust . x
 
 
-answer :: String -> Int -> String -> IO Message
+type Token = String
+type ChatId = Int
+type MsgId = Int
+
+answer :: Token -> ChatId -> String -> IO Message
 answer token chat text = do
     res <- execArgsTgJson token SendMessage $ M.fromList [("text", text), ("chat_id", show chat)]
     let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
     let (Success msg) = fromJSON obj
     pure msg
 
-reply :: String -> Int -> Int -> String -> IO Message
+reply :: Token -> ChatId -> MsgId -> String -> IO Message
 reply token chat msgId text = do
     res <- execArgsTgJson token SendMessage opts 
     let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
