@@ -30,7 +30,8 @@ executable athene-engine
     Data.Review,
     Control.Async,
     Data.State,
-    API.Telegram
+    API.Telegram,
+    Data.FreeState
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
@@ -52,6 +53,8 @@ executable athene-engine
     uri-encode,
     vector,
     containers,
+    free,
+    lens,
     bytestring,
     http-client,
     sqlite-simple >= 0.4.18.0
