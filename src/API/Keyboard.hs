@@ -8,6 +8,7 @@
 module API.Keyboard where
 import GHC.Generics
 import Data.Aeson
+import qualified Data.ByteString.Lazy.Char8 as LB
 
 newtype KeyboardButton = KButton {
         text :: String
@@ -23,4 +24,9 @@ data ReplyKeyboardMarkup =
     deriving stock (Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
 
-textButton =  ""
+textButton = KButton 
+
+markupOfBtn mark = ReplyKeyboardMarkup (Just mark) False
+
+kbToString :: [[KeyboardButton]] -> String
+kbToString = LB.unpack . encode . markupOfBtn
