@@ -12,6 +12,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 module Data.Posts where
+    
 import Database.SQLite.Simple ( execute, query, field, Only(Only), FromRow(..), Connection )
 import Control.Applicative ()
 import Database.SQLite.Simple.FromRow ( RowParser )
@@ -53,6 +54,8 @@ sumP post pPost = post {
     }
     where unpackM field = flip fromMaybe $ field pPost
 -- can't make work: unpackM field = unpackM (field pPost) (field post)
+
+emptyP = Post Nothing Nothing Nothing Nothing
 
 setupDB :: Connection -> IO ()
 setupDB conn =
