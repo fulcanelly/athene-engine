@@ -31,6 +31,7 @@ import qualified Data.Vector as V
 import Data.Maybe ( fromJust )
 import Data.Functor
 import Control.Monad
+import API.Keyboard
 
 data PhotoEntry = PhotoEntry {
     file_id :: String
@@ -123,6 +124,7 @@ getUpdatesJson token args = do
             update
         ) arr
 
+
 forAllUpdates :: String -> (Update -> IO ()) -> Maybe Integer -> IO ()
 forAllUpdates token handler updateId = do
     updates <- getUpdates' updateId
@@ -140,18 +142,26 @@ forAllUpdates token handler updateId = do
 unjust :: (a -> Maybe c) -> a -> c
 unjust x = fromJust . x
 
-sendMessageWithArgs :: Token -> ChatId -> String -> Args -> IO Message 
+sendMessageWithArgs :: Token -> ChatId -> String -> Args -> IO Message
 sendMessageWithArgs token chat text args = do
     res <- execArgsTgJson token SendMessage params
     let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
     let (Success msg) = fromJSON obj
     pure msg
-    where 
-        params = M.fromList [("text", text), ("chat_id", show chat)] `M.union` args
+    where
+        params = [("text", text), ("chat_id", show chat)] `M.union` args
 
+
+type Args = M.Map String String
 type Token = String
 type ChatId = Int
 type MsgId = Int
+
+
+answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO b
+answerWithButtons token chat text btns = do
+    res <- sendMessageWithArgs token chat text [("reply_markup", kbToString btns)]
+    pure undefined
 
 answer :: Token -> ChatId -> String -> IO Message
 answer token chat text = sendMessageWithArgs token chat text M.empty
