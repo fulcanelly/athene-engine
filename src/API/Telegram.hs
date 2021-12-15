@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedLists #-}
 
 module API.Telegram where
 
@@ -139,26 +140,22 @@ forAllUpdates token handler updateId = do
 unjust :: (a -> Maybe c) -> a -> c
 unjust x = fromJust . x
 
+sendMessageWithArgs :: Token -> ChatId -> String -> Args -> IO Message 
+sendMessageWithArgs token chat text args = do
+    res <- execArgsTgJson token SendMessage params
+    let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
+    let (Success msg) = fromJSON obj
+    pure msg
+    where 
+        params = M.fromList [("text", text), ("chat_id", show chat)] `M.union` args
 
 type Token = String
 type ChatId = Int
 type MsgId = Int
 
 answer :: Token -> ChatId -> String -> IO Message
-answer token chat text = do
-    res <- execArgsTgJson token SendMessage $ M.fromList [("text", text), ("chat_id", show chat)]
-    let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
-    let (Success msg) = fromJSON obj
-    pure msg
+answer token chat text = sendMessageWithArgs token chat text M.empty
 
 reply :: Token -> ChatId -> MsgId -> String -> IO Message
 reply token chat msgId text = do
-    res <- execArgsTgJson token SendMessage opts 
-    let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
-    let (Success msg) = fromJSON obj
-    return msg where
-        opts = M.fromList [
-                ("text", text),
-                ("chat_id", show chat),
-                ("reply_to_message_id", show msgId)
-            ]
+    sendMessageWithArgs token chat text [("reply_to_message_id", show msgId)]
