@@ -12,6 +12,7 @@ import qualified Data.Map as M
 import Data.Logic
 import Control.Monad.Free
 
+-- * make interpreter interceptor which will log and remove failed tasks
 
 data UpdateOrCommand 
     = Update ! Update 
