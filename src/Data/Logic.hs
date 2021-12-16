@@ -12,20 +12,23 @@ data HandlerEntry a
     , handler :: Scenario a
     }
 
+wrongOptionMessage = "Wrong option, try again"
+
+
 handleFew entries retryMsg = do
     text <- expect anyText
-    let matches = filter ((text ==) . trigger )  entries
+    let matches = filter ((text ==) . trigger ) entries
     if null matches then do
         eval $ replyText retryMsg
         handleFew entries retryMsg
     else do
         handler $ head matches
 
+handleFewWithGreeting entries greeting retryMsg = undefined
+
 expectFew list = do
     text <- expect anyText
-    if text `elem` list
-    then pure $ Just text
-    else do pure Nothing
+    pure if text `elem` list then Just text else Nothing
 
 
 anyPhoto = const $ Just 0
@@ -35,10 +38,10 @@ evalReply = eval . replyText
 post = do
     evalReply "you can [create / edit / delete / show] your post"
     handleFew [
-        HandlerEntry "create" create, 
+        HandlerEntry "create" create,
         HandlerEntry "back" $ pure ()
         ] "wrong option, try again"
-    where 
+    where
     create = do
         evalReply "please enter title"
         title <- expect anyText
@@ -50,38 +53,38 @@ post = do
         evalReply "Ok! your post have created"
 
 
-fetchPost :: Scenario (Maybe AdvPost) 
+fetchPost :: Scenario (Maybe AdvPost)
 fetchPost = undefined
 
 find = do
     post <- fetchPost
-    case post of 
-        Nothing -> do
-            evalReply "There are no any post yet :/"
-            handleFew [
-                HandlerEntry "Back" $ pure (),  
-                HandlerEntry "Try again" find
-                ] "Wrong option, try again"
-        Just post -> do
-            --eval $ ShowPost
-            handleFew [
-                HandlerEntry "like" do 
-                    -- eval LikePost post
-                    find, 
-                HandlerEntry "dislike" do 
-                    -- eval DislikePost post
-                    find, 
-                HandlerEntry "back" $ pure ()
-                ] "wrong option, try again"
+    maybe onAbsent onPresent post
+    where
+    onAbsent = do
+        evalReply "There are no any post yet :/"
+        handleFew [
+            HandlerEntry "Back" $ pure (),
+            HandlerEntry "Try again" find
+            ] "Wrong option, try again"
 
+    onPresent post = do
+        --eval $ ShowPost
+        handleFew [
+            HandlerEntry "like" do
+                -- eval LikePost post
+                find,
+            HandlerEntry "dislike" do
+                -- eval DislikePost post
+                find,
+            HandlerEntry "back" $ pure ()
+            ] "wrong option, try again"
     --eval $ ShowPost
-    
-    pure () :: Scenario ()
+
 
 review = do
     pure ()
-        
-        
+
+
 lobby = do
     evalReply "you can [post / find / review ] "
 
