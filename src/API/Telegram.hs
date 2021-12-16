@@ -158,7 +158,7 @@ type ChatId = Int
 type MsgId = Int
 
 
-answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO b
+answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO Message
 answerWithButtons token chat text btns = do
     res <- sendMessageWithArgs token chat text [("reply_markup", kbToString btns)]
     pure undefined
