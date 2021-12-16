@@ -5,13 +5,13 @@
 {-# LANGUAGE RankNTypes #-}
 module Control.FreeState where
 
-import Control.Monad.Free
-import System.Exit hiding (ExitSuccess)
+import Control.Monad.Free ( foldFree, liftF, Free )
+import System.Exit ()
 import qualified Data.Map as M
-import Control.Monad
+import Control.Monad ( guard )
 import API.Telegram ( Message (text, Message, message_id, date, from, photo), Update (message, Update, update_id), From (From) )
-import Data.Maybe
-import Data.Posts
+import Data.Maybe ( fromJust )
+import Data.Posts ( AdvPost )
 
 data MessageEntry
     = Text {
@@ -34,11 +34,12 @@ data Command
     | CreatePost AdvPost
 
 
-
+data DBRequest
+    
 data ScenarioF next
     = Expect (Update -> Maybe next)
     | Eval Command next
-    | JumpBackIf next
+    | Request (DBRequest -> next)
     deriving Functor
 
 
@@ -50,15 +51,6 @@ eval cmd = liftF $ Eval cmd ()
 
 expect :: (Update -> Maybe a) -> Scenario a
 expect pred = liftF $ Expect pred
-
-
-
-
-data Context
-    = Context {
-
-    }
-
 
 
 execScenarioTest :: p -> ScenarioF a -> IO a
@@ -84,7 +76,7 @@ updateFromText text = Update {
     message = Just Message {
         message_id = 1,
         date = 1,
-        from = undefined,
+        from = error "never used",
         text = Just text,
         photo = Nothing
     }
