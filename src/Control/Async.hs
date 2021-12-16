@@ -37,3 +37,15 @@ awaitAndThen future action = do
     res <- takeMVar future
     action res
 
+example = do
+    chans <- initTasks $ executeAllWithPause 1
+
+    wrapIOToFuture chans $ putStrLn "d"
+    line <- wrapIOToFuture chans getLine 
+    wrapIOToFuture chans $ putStrLn "i"
+    wrapIOToFuture chans $ putStrLn "c"
+
+    awaitAndThen line print
+    wrapIOToFuture chans $ putStrLn "k"
+
+    pure ()
