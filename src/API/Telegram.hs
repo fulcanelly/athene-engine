@@ -160,8 +160,7 @@ type MsgId = Int
 
 answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO Message
 answerWithButtons token chat text btns = do
-    res <- sendMessageWithArgs token chat text [("reply_markup", kbToString btns)]
-    pure undefined
+    sendMessageWithArgs token chat text [("reply_markup", kbToString btns)]
 
 answer :: Token -> ChatId -> String -> IO Message
 answer token chat text = sendMessageWithArgs token chat text M.empty
