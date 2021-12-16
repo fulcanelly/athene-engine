@@ -1,9 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLabels #-}
+
 
 module API.Telegram where
 
@@ -32,7 +27,7 @@ import qualified Data.Vector as V
 import Data.Maybe ( fromJust )
 import Data.Functor ()
 import Control.Monad ()
-import API.Keyboard ( KeyboardButton, kbToString )
+import API.Keyboard ( KeyboardButton, kbToJSON )
 import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just )
 
@@ -71,15 +66,20 @@ data Update =
     deriving stock (Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
 
+
+fView = flip (^.) 
+fSafeView = flip (^?)
+
 msgIdU :: Update -> Maybe Int
-msgIdU x = x ^? #message . _Just . #message_id
+msgIdU = fSafeView $ #message . _Just . #message_id  
 
 chatU :: Update -> Maybe Int
-chatU x = x ^? #message . _Just . #from . #id
+chatU = fSafeView $ #message . _Just . #from . #id
 
 textU :: Update -> Maybe String
-textU x = x ^. #message . _Just . #text 
-    
+textU = fView $ #message . _Just . #text
+
+
 openHTTPS :: String -> IO LB.ByteString
 openHTTPS = HC.simpleHttp
 
@@ -172,7 +172,7 @@ type MsgId = Int
 
 answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO Message
 answerWithButtons token chat text btns = do
-    sendMessageWithArgs token chat text [("reply_markup", kbToString btns)]
+    sendMessageWithArgs token chat text [("reply_markup", kbToJSON btns)]
 
 answer :: Token -> ChatId -> String -> IO Message
 answer token chat text = sendMessageWithArgs token chat text M.empty
@@ -184,6 +184,6 @@ reply token chat msgId text = do
 replyWithButtons token chat msgId text btns = do
     sendMessageWithArgs token chat text [
         ("reply_to_message_id", show msgId),
-        ("reply_markup", kbToString btns)
+        ("reply_markup", kbToJSON btns)
         ]
     
