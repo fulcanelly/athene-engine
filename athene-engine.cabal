@@ -33,7 +33,8 @@ executable athene-engine
     API.Telegram,
     Control.FreeState,
     API.Keyboard,
-    Data.Logic
+    Data.Logic,
+    Contorl.TInter
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
