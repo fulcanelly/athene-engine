@@ -1,8 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLabels #-}
 
 module API.Telegram where
 
@@ -15,12 +16,12 @@ import Data.Aeson as J
       (.:),
       fromJSON,
       Key,
-      FromJSON,
+      FromJSON (parseJSON),
       Array,
       Object,
       Result,
       Value,
-      ToJSON )
+      ToJSON, withObject, (.:?) )
 
 import qualified Data.String as S
 import Data.List ( intercalate )
@@ -29,9 +30,11 @@ import Data.Either.Combinators ( rightToMaybe )
 import Data.Aeson.Types ( parseEither, Parser, Result (Success) )
 import qualified Data.Vector as V
 import Data.Maybe ( fromJust )
-import Data.Functor
-import Control.Monad
-import API.Keyboard
+import Data.Functor ()
+import Control.Monad ()
+import API.Keyboard ( KeyboardButton, kbToString )
+import Data.Generics.Labels ()
+import Control.Lens ( (^?), (^.), _Just )
 
 data PhotoEntry = PhotoEntry {
     file_id :: String
@@ -68,6 +71,15 @@ data Update =
     deriving stock (Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
 
+msgIdU :: Update -> Maybe Int
+msgIdU x = x ^? #message . _Just . #message_id
+
+chatU :: Update -> Maybe Int
+chatU x = x ^? #message . _Just . #from . #id
+
+textU :: Update -> Maybe String
+textU x = x ^. #message . _Just . #text 
+    
 openHTTPS :: String -> IO LB.ByteString
 openHTTPS = HC.simpleHttp
 
