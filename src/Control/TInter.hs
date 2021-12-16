@@ -1,2 +1,5 @@
-module Contorl.TInter where
+module Control.TInter where
+
+
+
 

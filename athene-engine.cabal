@@ -34,7 +34,7 @@ executable athene-engine
     Control.FreeState,
     API.Keyboard,
     Data.Logic,
-    Contorl.TInter
+    Control.TInter
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
