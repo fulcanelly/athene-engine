@@ -21,6 +21,7 @@ import Database.SQLite.Simple.FromField ()
 import Data.Maybe ( fromMaybe, listToMaybe )
 import Data.Aeson ( FromJSON, ToJSON )
 import GHC.Generics (Generic)
+import Control.Applicative
 
 type family AnyOrId s a where
     AnyOrId Identity a = a
@@ -45,8 +46,14 @@ deriving anyclass instance FromJSON PartialPost
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
 
-instance Semigroup PartialPost where 
-    (<>) = error "no impl yet"
+instance Semigroup (AdvPostTemplate Maybe) where 
+    a <> b = Post {
+        title = title a <|> title b,
+        userId = userId a <|> userId b,
+        fileId = fileId a <|> fileId b,
+        link = link a <|> link b
+    }
+
 
 instance Monoid PartialPost where
     mempty = emptyP
