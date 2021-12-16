@@ -28,7 +28,7 @@ type family AnyOrId s a where
 
 data AdvPostTemplate f = Post {
     title :: AnyOrId f String
-    , channelId :: AnyOrId f Integer
+    , userId :: AnyOrId f Integer
     , fileId :: AnyOrId f Integer -- adv photo 
     , link :: AnyOrId f String
     }
@@ -54,7 +54,7 @@ instance Monoid PartialPost where
 sumP :: AdvPost -> PartialPost -> AdvPost
 sumP post pPost = post {
         title = unpackM title (title post),
-        channelId = unpackM channelId (channelId post),
+        userId = unpackM userId (userId post),
         fileId = unpackM fileId (fileId post),
         link = unpackM link (link post)
     }
@@ -73,23 +73,23 @@ setupDB conn =
 updatePost :: Integer -> PartialPost -> Connection -> IO ()
 updatePost origin update conn = do
     (Just post) <- getSpecificAt origin conn
-    let updater = execute conn "UPDATE channel_posts SET title = ?, channelId = ?, fileId = ?, link = ? WHERE channelId = ?" in
+    let updater = execute conn "UPDATE channel_posts SET title = ?, userId = ?, fileId = ?, link = ? WHERE userId = ?" in
         updater $ updateEntry (summed post) origin
     where 
-        updateEntry Post{..} origin = (title, channelId, fileId, link, origin)
+        updateEntry Post{..} origin = (title, userId, fileId, link, origin)
         summed post = sumP post update
 
 createNewPost :: AdvPost -> Connection -> IO ()
 createNewPost Post{..} conn =
     execute conn "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
-        postEntry = (title, channelId, fileId, link)
+        postEntry = (title, userId, fileId, link)
 
 getSpecificAt :: Integer -> Connection -> IO (Maybe AdvPost)
-getSpecificAt channelId conn =
-    listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (channelId :: Integer))
+getSpecificAt userId conn =
+    listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (userId :: Integer))
 
 getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
-getFewExcept count channelId conn =
-    query conn "SELECT * from channel_posts WHERE channel_id != ? LIMIT ?" (channelId, count)
+getFewExcept count userId conn =
+    query conn "SELECT * from channel_posts WHERE channel_id != ? LIMIT ?" (userId, count)
 
     
