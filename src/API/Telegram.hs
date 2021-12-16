@@ -168,3 +168,10 @@ answer token chat text = sendMessageWithArgs token chat text M.empty
 reply :: Token -> ChatId -> MsgId -> String -> IO Message
 reply token chat msgId text = do
     sendMessageWithArgs token chat text [("reply_to_message_id", show msgId)]
+
+replyWithButtons token chat msgId text btns = do
+    sendMessageWithArgs token chat text [
+        ("reply_to_message_id", show msgId),
+        ("reply_markup", kbToString btns)
+        ]
+    
