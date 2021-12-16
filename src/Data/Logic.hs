@@ -11,7 +11,7 @@ import Control.FreeState
       MessageEntry(TextNButtons) )
 import Data.Posts ( AdvPost, AdvPostTemplate(Post) )
 import Control.Monad.Free ()
-
+import Data.List (find)
 
 data HandlerEntry a
     = HandlerEntry {
@@ -21,21 +21,12 @@ data HandlerEntry a
 
 wrongOptionMessage = "Wrong option, try again"
 
-findOne :: (a -> Bool) -> [a] -> Maybe a
-findOne pred list =
-    let matches = filter pred list
-    in if null matches then Nothing else Just $ head matches
-
-isTriggerSameAs text = (text ==) . trigger
-
-
-
 
 handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
 handleFewWithGreeting entries greeting retryMsg = do
     eval $ AnswerWith $ TextNButtons greeting buttons
     text <- expect anyText
-    case findOne (isTriggerSameAs text) entries of 
+    case ((text ==) . trigger) `find` entries of 
         Nothing -> do
             eval $ replyText retryMsg
             handleFewWithGreeting entries greeting retryMsg
@@ -79,15 +70,15 @@ post = do
 fetchPost :: Scenario (Maybe AdvPost)
 fetchPost = undefined
 
-find :: Scenario ()
-find = do
+findS :: Scenario ()
+findS = do
     post <- fetchPost
     maybe onAbsent onPresent post
     where
     onAbsent = do 
         autoHandleFew "There are no more post /any post yet :/" [
             HandlerEntry "Back" $ pure (),
-            HandlerEntry "Try again" find
+            HandlerEntry "Try again" findS
             ] 
 
     onPresent post = do
@@ -95,10 +86,10 @@ find = do
         autoHandleFew "What you think about this channel ?" [
             HandlerEntry "Like" do
                 -- eval LikePost post
-                find,
+                findS,
             HandlerEntry "Dislike" do
                 -- eval DislikePost post
-                find,
+                findS,
             HandlerEntry "Back" $ pure ()
             ] 
     --eval $ ShowPost
@@ -112,7 +103,7 @@ lobby :: Scenario ()
 lobby = do
     autoHandleFew "Lobby" [
         HandlerEntry "post" post,
-        HandlerEntry "find" find,
+        HandlerEntry "find" findS,
         HandlerEntry "review" review
         ] 
     lobby
