@@ -32,7 +32,8 @@ executable athene-engine
     Data.State,
     API.Telegram,
     Data.FreeState,
-    API.Keyboard
+    API.Keyboard,
+    Data.Logic
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
