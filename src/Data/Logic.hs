@@ -22,7 +22,7 @@ handleFewWithGreeting entries greeting retryMsg = do
     text <- expect anyText
     case ((text ==) . trigger) `find` entries of 
         Nothing -> do
-            eval $ replyText retryMsg
+            eval $ sendText retryMsg
             handleFewWithGreeting entries greeting retryMsg
         Just one -> handler one
     where
@@ -41,7 +41,7 @@ anyPhoto :: Num a => b -> Maybe a
 anyPhoto = const $ Just 0
 
 evalReply :: String -> Scenario ()
-evalReply = eval . replyText
+evalReply = eval . sendText
 
 post :: Scenario ()
 post = do

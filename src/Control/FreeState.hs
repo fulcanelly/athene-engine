@@ -28,9 +28,8 @@ data MessageEntry
         buttons :: [[String]] 
     } 
 
-replyText :: String -> Command
-replyText text = SendWith $ ReplyText text
-
+sendText :: String -> Command
+sendText text = SendWith $ Text text
 
 
 data Command
@@ -106,13 +105,13 @@ start :: Scenario ()
 start = do
 
     text <- expectText "loh"
-    eval (replyText $ "you said " <> text <> ", you can *repeat* again")
+    eval (sendText $ "you said " <> text <> ", you can *repeat* again")
     text <- expect anyText
     if text == "repeat"
         then start
         else
-            eval $ replyText "we are done"
-    eval $ replyText "hahaha"
+            eval $ sendText "we are done"
+    eval $ sendText "hahaha"
 
     eval None
 
