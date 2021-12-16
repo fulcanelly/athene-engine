@@ -45,6 +45,12 @@ deriving anyclass instance FromJSON PartialPost
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
 
+instance Semigroup PartialPost where 
+    (<>) = error "no impl yet"
+
+instance Monoid PartialPost where
+    mempty = emptyP
+
 sumP :: AdvPost -> PartialPost -> AdvPost
 sumP post pPost = post {
         title = unpackM title (title post),
