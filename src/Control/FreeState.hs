@@ -15,9 +15,12 @@ import Data.Posts
 
 data MessageEntry
     = Text {
-        mText:: String
+        mText :: String
     }
-    | NoN
+    | TextNButtons {
+        mText :: String,
+        buttons :: [[String]] 
+    }
 
 replyText :: String -> Command
 replyText text = ReplyWith $ Text text
@@ -111,7 +114,6 @@ start = do
     if text == "repeat"
         then start
         else
-
             eval $ replyText "we are done"
     eval $ replyText "hahaha"
 
