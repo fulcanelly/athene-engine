@@ -21,6 +21,7 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md, README.md
 
 executable athene-engine
+  ghc-options: -fasm -O2
   hs-source-dirs:      src
   main-is:             Main.hs
   other-modules: 
@@ -43,7 +44,10 @@ executable athene-engine
     DerivingStrategies,
     ScopedTypeVariables,
     NoMonomorphismRestriction,
-    TypeFamilies
+    TypeFamilies,
+    OverloadedLists,
+    OverloadedLabels,
+    FlexibleContexts
   build-depends:       
     base == 4.14.3.0,
     generic-lens,
