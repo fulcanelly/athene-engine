@@ -1,13 +1,9 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Data.Logic where
 import Control.FreeState
 import Data.Posts
-
-
-find = do
-    pure ()
-
-review = do
-    pure ()
+import Control.Monad.Free
 
 
 data HandlerEntry a
@@ -52,6 +48,39 @@ post = do
         link <- expect anyText
         eval $ CreatePost $ Post title undefined fileId link
         evalReply "Ok! your post have created"
+
+
+fetchPost :: Scenario (Maybe AdvPost) 
+fetchPost = undefined
+
+find = do
+    post <- fetchPost
+    case post of 
+        Nothing -> do
+            evalReply "There are no any post yet :/"
+            handleFew [
+                HandlerEntry "Back" $ pure (),  
+                HandlerEntry "Try again" find
+                ] "Wrong option, try again"
+        Just post -> do
+            --eval $ ShowPost
+            handleFew [
+                HandlerEntry "like" do 
+                    -- eval LikePost post
+                    find, 
+                HandlerEntry "dislike" do 
+                    -- eval DislikePost post
+                    find, 
+                HandlerEntry "back" $ pure ()
+                ] "wrong option, try again"
+
+    --eval $ ShowPost
+    
+    pure () :: Scenario ()
+
+review = do
+    pure ()
+        
         
 lobby = do
     evalReply "you can [post / find / review ] "
