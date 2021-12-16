@@ -49,12 +49,12 @@ instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
 
 instance Semigroup (AdvPostTemplate Maybe) where 
-    a <> b = Post {
-        title = title a <|> title b,
-        userId = userId a <|> userId b,
-        fileId = fileId a <|> fileId b,
-        link = link a <|> link b
-    }
+    a <> b = Post
+        (alt title)
+        (alt userId)
+        (alt fileId)
+        (alt link) where
+            alt f = f a <|> f b
 
 
 instance Monoid PartialPost where
