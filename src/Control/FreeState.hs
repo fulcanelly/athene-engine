@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
 module Control.FreeState where
 
@@ -21,16 +20,22 @@ data MessageEntry
         mText :: String,
         buttons :: [[String]] 
     }
+    | ReplyText {
+        mText :: String
+    }
+    | ReplyTextNButtons {
+        mText :: String,
+        buttons :: [[String]] 
+    } 
 
 replyText :: String -> Command
-replyText text = ReplyWith $ Text text
+replyText text = SendWith $ ReplyText text
 
 
 
 data Command
     = None
-    | ReplyWith MessageEntry
-    | AnswerWith MessageEntry
+    | SendWith MessageEntry
     | CreatePost AdvPost
 
 
@@ -62,7 +67,7 @@ execScenarioTest ctx (Expect nextF) = do
 
 execScenarioTest ctx (Eval cmd next) = do
     case cmd of
-        ReplyWith msg -> putStrLn $ "replying with: " <> mText msg
+        SendWith msg -> putStrLn $ "replying with: " <> mText msg
         _ -> mempty
     pure next
 

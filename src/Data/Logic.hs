@@ -2,13 +2,7 @@
 
 module Data.Logic where
 import Control.FreeState
-    ( anyText,
-      expect,
-      eval,
-      replyText,
-      Scenario,
-      Command(CreatePost, AnswerWith),
-      MessageEntry(TextNButtons) )
+
 import Data.Posts ( AdvPost, AdvPostTemplate(Post) )
 import Control.Monad.Free ()
 import Data.List (find)
@@ -24,7 +18,7 @@ wrongOptionMessage = "Wrong option, try again"
 
 handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
 handleFewWithGreeting entries greeting retryMsg = do
-    eval $ AnswerWith $ TextNButtons greeting buttons
+    eval $ SendWith $ TextNButtons greeting buttons
     text <- expect anyText
     case ((text ==) . trigger) `find` entries of 
         Nothing -> do
