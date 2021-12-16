@@ -31,7 +31,7 @@ executable athene-engine
     Control.Async,
     Data.State,
     API.Telegram,
-    Data.FreeState,
+    Control.FreeState,
     API.Keyboard,
     Data.Logic
   default-extensions:

@@ -1,5 +1,5 @@
 module Data.Logic where
-import Data.FreeState
+import Control.FreeState
 import Data.Posts
 
 

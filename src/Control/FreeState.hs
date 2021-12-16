@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
-module Data.FreeState where
+module Control.FreeState where
 
 import Control.Monad.Free
 import System.Exit hiding (ExitSuccess)
@@ -11,6 +11,7 @@ import qualified Data.Map as M
 import Control.Monad
 import API.Telegram ( Message (text, Message, message_id, date, from, photo), Update (message, Update, update_id), From (From) )
 import Data.Maybe
+import Data.Posts
 
 data MessageEntry
     = Text {
@@ -21,17 +22,20 @@ data MessageEntry
 replyText :: String -> Command
 replyText text = ReplyWith $ Text text
 
+
+
 data Command
     = None
     | ReplyWith MessageEntry
     | AnswerWith MessageEntry
+    | CreatePost AdvPost
 
 
 
 data ScenarioF next
     = Expect (Update -> Maybe next)
     | Eval Command next
-    | JumpBackIf  next
+    | JumpBackIf next
     deriving Functor
 
 
@@ -43,6 +47,7 @@ eval cmd = liftF $ Eval cmd ()
 
 expect :: (Update -> Maybe a) -> Scenario a
 expect pred = liftF $ Expect pred
+
 
 
 
@@ -63,7 +68,7 @@ execScenarioTest ctx (Expect nextF) = do
 execScenarioTest ctx (Eval cmd next) = do
     case cmd of
         ReplyWith msg -> putStrLn $ "replying with: " <> mText msg
-        _ -> putStrLn "unknown cmd"
+        _ -> mempty
     pure next
 
 execScenarioTest ctx _ = do
@@ -105,4 +110,11 @@ start = do
     text <- expect anyText
     if text == "repeat"
         then start
-        else eval $ replyText "we are done"
+        else
+
+            eval $ replyText "we are done"
+    eval $ replyText "hahaha"
+
+    eval None
+
+
