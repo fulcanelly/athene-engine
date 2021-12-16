@@ -28,5 +28,5 @@ textButton = KButton
 
 markupOfBtn mark = ReplyKeyboardMarkup (Just mark) False
 
-kbToString :: [[KeyboardButton]] -> String
-kbToString = LB.unpack . encode . markupOfBtn
+kbToJSON :: [[KeyboardButton]] -> String
+kbToJSON = LB.unpack . encode . markupOfBtn
