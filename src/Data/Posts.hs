@@ -10,6 +10,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 
 module Data.Posts where
     
@@ -74,13 +76,12 @@ setupDB :: Connection -> IO ()
 setupDB conn =
     execute conn query ()
     where query = "CREATE TABLE IF NOT EXISTS channel_posts(\
-        \ title, channel_id, file_id, link, \
-        \ FOREIGN KEY(channel_id) REFERENCES channel(id))"
+        \ title, user_id, file_id, link)"
 
 updatePost :: Integer -> PartialPost -> Connection -> IO ()
 updatePost origin update conn = do
     (Just post) <- getSpecificAt origin conn
-    let updater = execute conn "UPDATE channel_posts SET title = ?, userId = ?, fileId = ?, link = ? WHERE userId = ?" in
+    let updater = execute conn "UPDATE channel_posts SET title = ?, user_id = ?, file_id = ?, link = ? WHERE user_id = ?" in
         updater $ updateEntry (summed post) origin
     where 
         updateEntry Post{..} origin = (title, userId, fileId, link, origin)
@@ -93,10 +94,10 @@ createNewPost Post{..} conn =
 
 getSpecificAt :: Integer -> Connection -> IO (Maybe AdvPost)
 getSpecificAt userId conn =
-    listToMaybe <$> query conn "SELECT * from channel_posts WHERE channel_id = ?" (Only (userId :: Integer))
+    listToMaybe <$> query conn "SELECT * from channel_posts WHERE user_id = ?" (Only (userId :: Integer))
 
 getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
 getFewExcept count userId conn =
-    query conn "SELECT * from channel_posts WHERE channel_id != ? LIMIT ?" (userId, count)
+    query conn "SELECT * from channel_posts WHERE user_id != ? LIMIT ?" (userId, count)
 
     
