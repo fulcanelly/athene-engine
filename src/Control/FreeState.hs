@@ -81,7 +81,7 @@ updateFromText text = Update {
     message = Just Message {
         message_id = 1,
         date = 1,
-        from = From {},
+        from = undefined,
         text = Just text,
         photo = Nothing
     }
