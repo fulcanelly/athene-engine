@@ -1,4 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE BlockArguments #-}
+
 module Control.TInter where
 
 
