@@ -100,6 +100,31 @@ dispatchUpdate_ token var update = do
     res <- dispatchUpdate token cdata update
     putMVar var res 
 
+safeDispatchUpdate :: Token -> MVar ChatData -> Update -> IO ()
+safeDispatchUpdate token var update = do
+    cdata <- takeMVar var
+    print cdata
+
+    let chat = fromJust $ chatU update 
+    
+    res <- case chat `M.lookup` cdata of 
+            Just ctx -> do
+                writeChan (mailbox ctx) update 
+                pure $ cdata
+            Nothing -> do
+                ctx <- newContext token update
+                
+                let computation = catchAny (startIter ctx) \err -> do 
+                    --on high load it can lead to data race so it need to bee rewritten to work atomically 
+                        cdata <- takeMVar var        
+                        answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) [["restart"]])
+                        putMVar var (chat `M.delete` cdata)
+
+                forkIO computation
+
+                pure $ (chat `M.insert` ctx) cdata
+    putMVar var res
+
 setupChatData :: IO (MVar ChatData)
 setupChatData = do
     newMVar []
