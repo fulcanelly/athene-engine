@@ -14,6 +14,11 @@ import API.Keyboard (textButton)
 import qualified Data.Map as M
 import Data.Logic
 import Control.Monad.Free
+import Control.Exception
+
+catchAny :: IO a -> (SomeException -> IO a) -> IO a
+catchAny = catch
+
 
 -- * make interpreter interceptor which will log and remove failed tasks
 
