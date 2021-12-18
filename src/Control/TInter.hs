@@ -27,6 +27,9 @@ data Context
         , chat :: Int
     } 
 
+instance Show Context where
+    show x = "<<Context>>"
+
 type ChatData = M.Map ChatId Context
 
 answerWith :: Context -> MessageEntry -> IO ()
