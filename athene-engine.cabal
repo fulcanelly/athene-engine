@@ -4,9 +4,9 @@
 cabal-version:       >=1.10
 tested-with:         GHC ==8.10.7
 category: Bot
-license: GPL3
+license: GPL-3
 description: the telegram bot for auto mutual channel advertising
-    
+synopsis: How it's different from description?
 name:                athene-engine
 version:             0.1.0.0
 -- synopsis:
