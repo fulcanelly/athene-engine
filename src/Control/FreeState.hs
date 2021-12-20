@@ -2,6 +2,10 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Control.FreeState where
 
 import Control.Monad.Free ( foldFree, liftF, Free )
@@ -11,6 +15,9 @@ import Control.Monad ( guard )
 import API.Telegram ( Message (text, Message, message_id, date, from, photo), Update (message, Update, update_id), From (From) )
 import Data.Maybe ( fromJust )
 import Data.Posts ( AdvPost )
+import Control.Exception (throw, catch, Exception)
+import Foreign.C (eROFS)
+import Data.Data
 
 data MessageEntry
     = Text {
@@ -18,15 +25,15 @@ data MessageEntry
     }
     | TextNButtons {
         mText :: String,
-        buttons :: [[String]] 
+        buttons :: [[String]]
     }
     | ReplyText {
         mText :: String
     }
     | ReplyTextNButtons {
         mText :: String,
-        buttons :: [[String]] 
-    } 
+        buttons :: [[String]]
+    }
 
 sendText :: String -> Command
 sendText text = SendWith $ Text text
@@ -39,7 +46,7 @@ data Command
 
 
 data DBRequest
-    
+
 data ScenarioF next
     = Expect (Update -> Maybe next)
     | Eval Command next
@@ -59,10 +66,24 @@ expect pred = liftF $ Expect pred
 returnIf :: (Update -> Bool) -> Scenario a -> Scenario a -> Scenario a
 returnIf pred branch failbranch = liftF $ ReturnIf pred branch failbranch
 
-execScenarioTest :: p -> ScenarioF a -> IO a
+data ReturnE = ReturnE
+   deriving (Show)
+
+instance Show ReturnE => Exception ReturnE where
+
+catchReturn :: IO a -> (ReturnE -> IO a) -> IO a
+catchReturn = catch
+
+execScenarioTest :: ContextC a -> ScenarioF b -> IO b
 execScenarioTest ctx (Expect nextF) = do
     line <- getLine
-    case nextF $ updateFromText line of
+    let update = updateFromText line
+    case ctx of 
+        CtxC p -> if p update then throw ReturnE else handleUpdate update
+        N -> handleUpdate update
+    
+    where
+    handleUpdate update = case nextF update of
         Just next -> pure next
         Nothing -> execScenarioTest ctx $ Expect nextF
 
@@ -72,10 +93,19 @@ execScenarioTest ctx (Eval cmd next) = do
         _ -> mempty
     pure next
 
-execScenarioTest ctx _ = do
-    pure undefined
+execScenarioTest ctx (ReturnIf pred branch falling) = 
+    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` do
+        pure $ execScenarioTest ctx `foldFree` branch
 
-test = foldFree $ execScenarioTest undefined
+execScenarioTest _ _ = do
+    error "not implemented"
+
+
+data ContextC a = CtxC {
+    isReturn :: Update -> Bool
+    } | N
+
+runScenTest = foldFree $ execScenarioTest N
 
 updateFromText text = Update {
     update_id = 1,
