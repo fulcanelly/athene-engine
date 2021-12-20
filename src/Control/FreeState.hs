@@ -43,8 +43,7 @@ data DBRequest
 data ScenarioF next
     = Expect (Update -> Maybe next)
     | Eval Command next
-    | Request (DBRequest -> next)
-    deriving Functor
+    | ReturnIf (Update -> Bool) (Scenario next) (Scenario next)
 
 
 type Scenario = Free ScenarioF
