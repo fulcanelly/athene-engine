@@ -45,6 +45,7 @@ data ScenarioF next
     | Eval Command next
     | ReturnIf (Update -> Bool) (Scenario next) (Scenario next)
 
+deriving instance Functor ScenarioF
 
 type Scenario = Free ScenarioF
 
