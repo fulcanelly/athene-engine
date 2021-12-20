@@ -56,6 +56,8 @@ eval cmd = liftF $ Eval cmd ()
 expect :: (Update -> Maybe a) -> Scenario a
 expect pred = liftF $ Expect pred
 
+returnIf :: (Update -> Bool) -> Scenario a -> Scenario a -> Scenario a
+returnIf pred branch failbranch = liftF $ ReturnIf pred branch failbranch
 
 execScenarioTest :: p -> ScenarioF a -> IO a
 execScenarioTest ctx (Expect nextF) = do
