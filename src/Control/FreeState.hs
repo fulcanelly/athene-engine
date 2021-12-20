@@ -16,27 +16,20 @@ import API.Telegram ( Message (text, Message, message_id, date, from, photo), Up
 import Data.Maybe ( fromJust )
 import Data.Posts ( AdvPost )
 import Control.Exception (throw, catch, Exception, finally)
-import Foreign.C (eROFS)
 import Data.Data
 
 data MessageEntry
-    = Text {
-        mText :: String
-    }
-    | TextNButtons {
+    = TextNButtons {
         mText :: String,
-        buttons :: [[String]]
-    }
-    | ReplyText {
-        mText :: String
+        buttons :: Maybe [[String]]
     }
     | ReplyTextNButtons {
         mText :: String,
-        buttons :: [[String]]
+        buttons :: Maybe [[String]]
     }
 
 sendText :: String -> Command
-sendText text = SendWith $ Text text
+sendText text = SendWith $ TextNButtons text Nothing
 
 
 data Command
@@ -78,10 +71,10 @@ execScenarioTest :: ContextC a -> ScenarioF b -> IO b
 execScenarioTest ctx (Expect nextF) = do
     line <- getLine
     let update = updateFromText line
-    case ctx of 
+    case ctx of
         CtxC p -> if p update then throw ReturnE else handleUpdate update
         N -> handleUpdate update
-    
+
     where
     handleUpdate update = case nextF update of
         Just next -> pure next
@@ -89,16 +82,16 @@ execScenarioTest ctx (Expect nextF) = do
 
 execScenarioTest ctx (Eval cmd next) = do
     case cmd of
-        SendWith msg -> putStrLn $ "replying with: " <> mText msg
+        SendWith msg -> case buttons msg of
+            Nothing -> sendText mempty 
+            Just btns -> sendText ("; with buttons: " <> show btns)
+            where sendText with = putStrLn $ "replying with: " <> mText msg <> with
         _ -> mempty
     pure next
 
-execScenarioTest ctx (ReturnIf pred branch falling) = 
-    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` const handleFalling 
+execScenarioTest ctx (ReturnIf pred branch falling) =
+    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` const handleFalling
     where handleFalling = execScenarioTest ctx `foldFree` falling
-
-execScenarioTest _ _ = do
-    error "not implemented"
 
 
 data ContextC a = CtxC {
