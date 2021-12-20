@@ -94,8 +94,8 @@ execScenarioTest ctx (Eval cmd next) = do
     pure next
 
 execScenarioTest ctx (ReturnIf pred branch falling) = 
-    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` \x -> do
-        execScenarioTest ctx `foldFree` falling
+    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` const handleFalling 
+    where handleFalling = execScenarioTest ctx `foldFree` falling
 
 execScenarioTest _ _ = do
     error "not implemented"
