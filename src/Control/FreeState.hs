@@ -15,7 +15,7 @@ import Control.Monad ( guard )
 import API.Telegram ( Message (text, Message, message_id, date, from, photo), Update (message, Update, update_id), From (From) )
 import Data.Maybe ( fromJust )
 import Data.Posts ( AdvPost )
-import Control.Exception (throw, catch, Exception)
+import Control.Exception (throw, catch, Exception, finally)
 import Foreign.C (eROFS)
 import Data.Data
 
@@ -94,8 +94,8 @@ execScenarioTest ctx (Eval cmd next) = do
     pure next
 
 execScenarioTest ctx (ReturnIf pred branch falling) = 
-    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` do
-        pure $ execScenarioTest ctx `foldFree` branch
+    (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` \x -> do
+        execScenarioTest ctx `foldFree` falling
 
 execScenarioTest _ _ = do
     error "not implemented"
