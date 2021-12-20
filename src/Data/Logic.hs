@@ -6,6 +6,7 @@ import Control.FreeState
 import Data.Posts ( AdvPost, AdvPostTemplate(Post) )
 import Control.Monad.Free ()
 import Data.List (find)
+import API.Telegram
 
 data HandlerEntry a
     = HandlerEntry {
@@ -92,12 +93,21 @@ findS = do
 review = do
     pure ()
 
+isTextMatchU :: String -> Update -> Bool
+isTextMatchU text update = case textU update of 
+  Nothing -> False 
+  Just s -> text == s
+   
+branch `returnOn` word = 
+    returnIf (isTextMatchU word) branch do 
+        evalReply $ "returing from: " ++ word
+        pure ()
 
 lobby :: Scenario ()
 lobby = do
     autoHandleFew "Lobby" [
-        HandlerEntry "post" post,
-        HandlerEntry "find" findS,
+        HandlerEntry "post" (post `returnOn` "back") ,
+        HandlerEntry "find"  findS,
         HandlerEntry "review" review
         ] 
     lobby
