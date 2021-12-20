@@ -19,7 +19,7 @@ wrongOptionMessage = "Wrong option, try again"
 
 handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
 handleFewWithGreeting entries greeting retryMsg = do
-    eval $ SendWith $ TextNButtons greeting buttons
+    eval $ SendWith $ TextNButtons greeting $ Just buttons
     text <- expect anyText
     case ((text ==) . trigger) `find` entries of 
         Nothing -> do

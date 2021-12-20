@@ -44,12 +44,10 @@ answerWith :: Context -> MessageEntry -> IO ()
 answerWith Context {..} entry = do
     --let (Just mid) = msgIdU update
     let mid = error "no way to get it yet"
-    case entry of 
-        Text text -> answer tokenC chat text
-        ReplyText text -> reply tokenC chat mid text
-        TextNButtons text bt -> answerWithButtons tokenC chat text (toButtons bt)
-       -- ReplyTextNButtons text bt -> replyWithButtons tokenC chat mid text (toButtons bt)
-        _ -> error "todo"
+    let text = mText entry
+    case buttons entry of
+      Nothing -> answer tokenC chat text
+      Just butns -> answerWithButtons tokenC chat text (toButtons butns)
     pure ()
 
     where toButtons = map (map textButton)  
@@ -70,8 +68,7 @@ iterScenarioTg ctx expect@ (Expect pred) = do
         Just next -> pure next
         Nothing -> iterScenarioTg ctx expect
         
-iterScenarioTg ctx (Request pred) = error "." 
-
+iterScenarioTg ctx _ = error "unimplemented" 
 
 
 startIter :: Context -> IO ()
@@ -117,7 +114,7 @@ safeDispatchUpdate token var update = do
                 let computation = catchAny (startIter ctx) \err -> do 
                     --on high load it can lead to data race so it need to bee rewritten to work atomically 
                         cdata <- takeMVar var        
-                        answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) [["restart"]])
+                        answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) (Just [["restart"]]))
                         putMVar var (chat `M.delete` cdata)
 
                 forkIO computation
