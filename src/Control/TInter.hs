@@ -14,7 +14,7 @@ import Control.Async ( Task )
 import Control.FreeState
     ( Command(SendWith),
       MessageEntry(TextNButtons, mText, buttons),
-      ScenarioF(Expect, Eval) )
+      ScenarioF(Expect, Eval, ReturnIf), catchReturn )
 import Data.Maybe ( fromJust )
 import API.Keyboard (textButton)
 import qualified Data.Map as M
@@ -47,12 +47,17 @@ data UpdateOrCommand
 
 data Context
     = Context {
-        mailbox :: TChan Update
+        mailbox :: TChan Update --todo: change to TChan UpdateOrCommand. reason: suspending old chats
         , tokenC :: String
         , sqlTasks :: TChan Task
         , throttleTasks :: TChan Task
         , chat :: Int
     }
+    | ReturningContext {
+        inner :: Context
+        , pred :: Update -> Bool
+    }
+    
 
 instance Show Context where
     show x = "<<Context>>"
@@ -71,6 +76,8 @@ answerWith Context {..} entry = do
 
     where toButtons = map (map textButton)
 
+answerWith ReturningContext{..} entry = answerWith inner entry
+
 iterScenarioTg :: Context -> ScenarioF a -> IO a
 iterScenarioTg ctx (Eval cmd next) = do
     case cmd of
@@ -84,7 +91,12 @@ iterScenarioTg ctx expect @ (Expect pred) = do
         Just next -> pure next
         Nothing -> iterScenarioTg ctx expect
 
-iterScenarioTg ctx _ = error "unimplemented"
+iterScenarioTg ctx (ReturnIf pred branch falling) = do 
+    foldFree (iterScenarioTg $ ReturningContext ctx pred) branch `catchReturn` const handleFalling 
+    where handleFalling = iterScenarioTg ctx `foldFree` falling
+
+    
+--iterScenarioTg ctx _ = error "unimplemented"
 
 
 startIter :: Context -> IO ()
