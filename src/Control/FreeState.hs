@@ -116,8 +116,6 @@ updateFromText text = Update {
 anyText :: Update -> Maybe String
 anyText = text . fromJust . message
 
-a = guard
-
 expectText :: String -> Scenario String
 expectText expected = do
     text <- expect anyText

@@ -15,7 +15,7 @@ import Control.FreeState
     ( Command(SendWith),
       MessageEntry(TextNButtons, mText, buttons),
       ScenarioF(Expect, Eval, ReturnIf), catchReturn, ReturnE (ReturnE) )
-import Data.Maybe ( fromJust )
+import Data.Maybe ( fromJust, fromMaybe )
 import API.Keyboard (textButton)
 import qualified Data.Map as M
 import Data.Logic ( lobby )
@@ -108,9 +108,9 @@ startIter ctx = foldFree (iterScenarioTg ctx) lobby
 newContext :: String -> Update -> STM Context
 newContext token update = Context
     <$> newTChan <*> pure token
-    <*> newTChan <*> newTChan 
+    <*> newTChan <*> newTChan
     <*> pure (fromJust $ chatU update)
-    <*> pure Nothing 
+    <*> pure Nothing
 
 type ChatRemover = STM ()
 
@@ -121,15 +121,19 @@ removeChatSync tcdata chat = do
 
 handleInterpreterFailure :: ChatRemover -> Context -> SomeException -> IO ()
 handleInterpreterFailure chatRem ctx err = do
-    atomically chatRem 
+    atomically chatRem
     answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) (Just [["restart"]]))
 
 startNewScenario :: ChatRemover -> Context -> IO ThreadId
 startNewScenario chatRem ctx = forkIO do
     startIter ctx `catchAny` handleInterpreterFailure chatRem ctx
 
+--dispatchUpdateS :: String -> TVar ChatData -> Update -> STM (Maybe (IO ()))
 
-dispatchUpdateS :: String -> TVar ChatData -> Update -> STM (Either () (IO ()))
+dispatchUpdateS :: String
+    -> TVar ChatData
+    -> Update
+    -> STM (Maybe (ChatRemover, Context))
 dispatchUpdateS token source update = do
     cdata <- readTVar source
     let chat = fromJust $ chatU update
@@ -137,22 +141,22 @@ dispatchUpdateS token source update = do
     case chat `M.lookup` cdata of
         Just ctx -> do
             writeTChan (mailbox ctx) update
-            pure $ Left ()
+            pure Nothing
 
         Nothing -> do
             ctx <- newContext token update
             writeTVar source $ (chat `M.insert` ctx) cdata
-            pure $ Right do 
-                startNewScenario (removeChatSync source chat) ctx
-                pure ()
- 
+            pure $ Just (removeChatSync source chat, ctx)
 
 safeHandleUpdateS :: Token -> TVar ChatData -> Update -> IO ()
 safeHandleUpdateS token chats update = do
-    print =<< readTVarIO chats 
+    print =<< readTVarIO chats
     res <- atomically $ dispatchUpdateS token chats update
-    either pure Prelude.id res
-    
+    maybe mempty createScenario res
+    where 
+    createScenario (chatRemover, ctx) = do
+        startNewScenario chatRemover ctx
+        mempty 
 
 
 setupChatDataS :: IO (TVar ChatData)
