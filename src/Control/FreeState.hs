@@ -121,32 +121,3 @@ updateFromText text = Update {
         photo = Nothing
     }
 }
-
-
-
-anyText :: Update -> Maybe String
-anyText = text . fromJust . message
-
-expectText :: String -> Scenario String
-expectText expected = do
-    text <- expect anyText
-    if text == expected
-        then pure text
-        else expectText expected
-
-
-start :: Scenario ()
-start = do
-
-    text <- expectText "loh"
-    eval (sendText $ "you said " <> text <> ", you can *repeat* again")
-    text <- expect anyText
-    if text == "repeat"
-        then start
-        else
-            eval $ sendText "we are done"
-    eval $ sendText "hahaha"
-
-    eval None
-
-

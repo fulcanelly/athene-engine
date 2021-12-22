@@ -48,6 +48,9 @@ anyPhoto update =
     . _Just . #photo 
     . _Just . ix 0 . #file_id
 
+anyText :: Update -> Maybe String
+anyText update = update ^? #message . _Just . #text . _Just
+
 
 evalReply :: String -> Scenario ()
 evalReply = eval . sendText
