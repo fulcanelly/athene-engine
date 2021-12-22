@@ -14,7 +14,7 @@
 
 
 module Data.Posts where
-    
+
 import Database.SQLite.Simple ( execute, query, field, Only(Only), FromRow(..), Connection )
 import Control.Applicative ()
 import Database.SQLite.Simple.FromRow ( RowParser )
@@ -24,6 +24,7 @@ import Data.Maybe ( fromMaybe, listToMaybe )
 import Data.Aeson ( FromJSON, ToJSON )
 import GHC.Generics (Generic)
 import Control.Applicative
+import API.Telegram (ChatId)
 
 type family AnyOrId s a where
     AnyOrId Identity a = a
@@ -31,8 +32,8 @@ type family AnyOrId s a where
 
 data AdvPostTemplate f = Post {
     title :: AnyOrId f String
-    , userId :: AnyOrId f Integer
-    , fileId :: AnyOrId f Integer -- adv photo 
+    , userId :: AnyOrId f Int
+    , fileId :: AnyOrId f Int -- adv photo 
     , link :: AnyOrId f String
     }
 
@@ -48,7 +49,7 @@ deriving anyclass instance FromJSON PartialPost
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
 
-instance Semigroup (AdvPostTemplate Maybe) where 
+instance Semigroup (AdvPostTemplate Maybe) where
     a <> b = Post
         (alt title)
         (alt userId)
@@ -78,12 +79,12 @@ setupDB conn =
     where query = "CREATE TABLE IF NOT EXISTS channel_posts(\
         \ title, user_id, file_id, link)"
 
-updatePost :: Integer -> PartialPost -> Connection -> IO ()
+updatePost :: Int -> PartialPost -> Connection -> IO ()
 updatePost origin update conn = do
     (Just post) <- getSpecificAt origin conn
     let updater = execute conn "UPDATE channel_posts SET title = ?, user_id = ?, file_id = ?, link = ? WHERE user_id = ?" in
         updater $ updateEntry (summed post) origin
-    where 
+    where
         updateEntry Post{..} origin = (title, userId, fileId, link, origin)
         summed post = sumP post update
 
@@ -92,9 +93,9 @@ createNewPost Post{..} conn =
     execute conn "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
         postEntry = (title, userId, fileId, link)
 
-getSpecificAt :: Integer -> Connection -> IO (Maybe AdvPost)
+getSpecificAt :: Int -> Connection -> IO (Maybe AdvPost)
 getSpecificAt userId conn =
-    listToMaybe <$> query conn "SELECT * from channel_posts WHERE user_id = ?" (Only (userId :: Integer))
+    listToMaybe <$> query conn "SELECT * from channel_posts WHERE user_id = ?" (Only (userId :: Int))
 
 getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
 getFewExcept count userId conn =
