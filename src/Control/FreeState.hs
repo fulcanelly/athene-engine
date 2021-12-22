@@ -12,7 +12,7 @@ import Control.Monad.Free ( foldFree, liftF, Free )
 import System.Exit ()
 import qualified Data.Map as M
 import Control.Monad ( guard )
-import API.Telegram 
+import API.Telegram
 import Data.Maybe ( fromJust )
 import Data.Posts ( AdvPost, AdvPostTemplate (Post) )
 import Control.Exception (throw, catch, Exception, finally)
@@ -22,14 +22,14 @@ import API.ReplyMarkup
 import Data.ByteString.Builder.Prim (primMapByteStringBounded)
 
 data MessageEntry
-    = MessageEntry { 
+    = MessageEntry {
         args :: Args
         , method :: Request
     }
     deriving Show
 
 sendText :: String -> Command
-sendText text = SendWith $ MessageEntry [("text", text)] SendMessage 
+sendText text = SendWith $ MessageEntry [("text", text)] SendMessage
 
 strTreeToButtons :: [[String]] -> String
 strTreeToButtons buttons = kbToJSON . getCompose $ KButton <$> Compose buttons
@@ -42,13 +42,18 @@ sendPhoto fileId caption buttons = MessageEntry {
             ("photo", fileId)
         ],
         method = SendPhoto
-    } 
-    
+    }
+
 sendTextNButtonsEntry :: String -> [[String]] -> MessageEntry
 sendTextNButtonsEntry text buttons = MessageEntry [
     ("text", text), ("reply_markup", strTreeToButtons buttons)] SendMessage
 
+sendRemovingKeyboard :: String -> MessageEntry
+sendRemovingKeyboard text = MessageEntry [
+        ("text", text), ("reply_markup", toJSONString disableKb)
+    ] SendMessage
 
+sendWithInlineKB =0
 data Command
     = None
     | SendWith MessageEntry

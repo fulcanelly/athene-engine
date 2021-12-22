@@ -24,9 +24,38 @@ data ReplyKeyboardMarkup =
     deriving stock (Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
 
+data ReplyKeyboardRemove =
+    ReplyKeyboardRemove {
+        remove_keyboard :: Bool,
+        selective :: Maybe Bool
+    }
+    deriving stock (Show, Generic)
+    deriving anyclass (ToJSON, FromJSON)
+
+
+data InlineKeyboardButton = 
+    InlineKeyboardButton {
+        text_ :: String, --- problem !!!!
+        url :: String
+    }
+    deriving stock (Show, Generic)
+    deriving anyclass (ToJSON, FromJSON)
+
+newtype InlineKeyboardMarkup =
+    InlineKeyboardMarkup {
+        inline_keyboard :: [[InlineKeyboardButton]]
+    }
+    deriving stock (Show, Generic)
+    deriving anyclass (ToJSON, FromJSON)
+
 textButton = KButton 
 
 markupOfBtn mark = ReplyKeyboardMarkup (Just mark) False
 
 kbToJSON :: [[KeyboardButton]] -> String
-kbToJSON = LB.unpack . encode . markupOfBtn
+kbToJSON = toJSONString . markupOfBtn
+
+toJSONString = LB.unpack . encode 
+
+
+disableKb = ReplyKeyboardRemove True Nothing 
