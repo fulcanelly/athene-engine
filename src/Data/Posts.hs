@@ -100,4 +100,6 @@ getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
 getFewExcept count userId conn =
     query conn "SELECT * from channel_posts WHERE user_id != ? LIMIT ?" (userId, count)
 
-    
+findRandomPostExcluding :: ChatId -> Connection -> IO (Maybe AdvPost)
+findRandomPostExcluding userId conn =
+    listToMaybe <$> query conn "SELECT * FROM channel_posts WHERE user_id != ? ORDER BY RANDOM() LIMIT 1" (Only (userId :: Int))
