@@ -1,41 +1,53 @@
 module Control.Async where 
 import Control.Concurrent
+import Control.Concurrent.STM (TChan, TVar, readTChan, atomically, newTChan, newTChanIO, writeTChan)
+import Control.Concurrent.STM.TSem
 
 {-
 throttling mechanism blueprint
 -}
 
 type Task = () -> IO ()
-type Executor = Chan Task -> IO ()
-type Future a = MVar a
+type Executor = TChan Task -> IO ()
+type Future a = TChan a
 
-executeAllWithPause :: Int -> Executor
-executeAllWithPause sec chan = do
-    func <- readChan chan
+
+excPauseS :: TSem -> Int -> TChan Task -> IO b
+excPauseS sem sec chan = do 
+    func <- atomically $ do
+        waitTSem sem
+        readTChan chan
     func ()
-    threadDelay $ sec * 1000 * 1000
-    executeAllWithPause sec chan
+    threadDelay $ sec * 1000 * 1000 -- newTSem 1
+    atomically $ signalTSem sem
+    excPauseS sem sec chan
 
-initTasks :: Executor -> IO (Chan Task)
+executeAllWithPause :: Int -> TChan Task -> IO a
+executeAllWithPause sec chan = do 
+    sem <- atomically $ newTSem 1
+    excPauseS sem sec chan
+
+initTasks :: Executor -> IO (TChan Task)
 initTasks execute = do
-    chan <- newChan :: IO (Chan Task)
+    chan <- newTChanIO :: IO (TChan Task)
     forkIO $ execute chan
     pure chan
     
  
-wrapIOToFuture :: Chan Task -> IO a -> IO (Future a)
+wrapIOToFuture :: TChan Task -> IO a -> IO (Future a)
 wrapIOToFuture chan action = do
-    var <- newEmptyMVar 
-    writeChan chan $ \() -> do
+    var <- newTChanIO  
+    atomically $ writeTChan chan $ \_ -> do
         res <- action
-        putMVar var res
+        atomically $ writeTChan var res
     pure var
 
     
 awaitAndThen :: Future t -> (t -> IO r) -> IO r
 awaitAndThen future action = do
-    res <- takeMVar future
+    res <- atomically $ readTChan future
     action res
+
 
 example = do
     chans <- initTasks $ executeAllWithPause 1
