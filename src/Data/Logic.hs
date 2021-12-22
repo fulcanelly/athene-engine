@@ -1,16 +1,21 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Data.Logic where
-import Control.FreeState
+import Control.FreeState as F
 
-import Data.Posts ( AdvPost, AdvPostTemplate(Post) )
-import Control.Monad.Free ()
+import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId) )
+import Control.Monad.Free (Free (Pure, Free), foldFree, liftF)
 import Data.List (find)
 import API.Telegram
 import Data.Maybe (isJust)
 import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
+import Control.Applicative
+import Control.Monad.Free.Church (foldF)
 
 data HandlerEntry a
     = HandlerEntry {
@@ -23,7 +28,7 @@ wrongOptionMessage = "Wrong option, try again"
 
 handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
 handleFewWithGreeting entries greeting retryMsg = do
-    eval $ SendWith $ TextNButtons greeting $ Just buttons
+    eval $ SendWith $ sendTextNButtonsEntry greeting buttons 
     text <- expect anyText
     case ((text ==) . trigger) `find` entries of 
         Nothing -> do
@@ -42,11 +47,34 @@ expectFew list = do
     pure if text `elem` list then Just text else Nothing
 
 
+constrExpectText :: Scenario String
+constrExpectText = anyText `expectOrReply` "Text expected"
+
+
+constrExpectPhoto :: Scenario String
+constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
+
+expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
+expectOrReply pred failMsg = do 
+    update <- expect Just
+    case pred update of
+        Nothing -> do
+            evalReply failMsg
+            expectOrReply pred failMsg
+        Just res -> pure res
+
 anyPhoto :: Update -> Maybe String
-anyPhoto update =
-    update ^? #message
+anyPhoto update 
+    = update ^? #message
     . _Just . #photo 
     . _Just . ix 0 . #file_id
+
+withChatId :: Update -> Maybe ChatId
+withChatId update = update ^? #message . _Just . #from . #id
+
+anyTextWithChatId :: Update -> Maybe (String, ChatId) 
+anyTextWithChatId update =
+    (,) <$> anyText update <*> withChatId update
 
 anyText :: Update -> Maybe String
 anyText update = update ^? #message . _Just . #text . _Just
@@ -64,33 +92,19 @@ post = do
     where
     create = do
         evalReply "please enter title"
-        title <- constrExpectText
+        (title, chatId) <- anyTextWithChatId `expectOrReply` "Text expected"
+
         evalReply "please send heading photo"
         fileId <- constrExpectPhoto
+        
         evalReply "now send join link to you channel "
         link <- constrExpectText
-        eval $ CreatePost $ Post title undefined fileId link
+        
+        eval $ CreatePost $ Post title chatId fileId link
         evalReply "Ok! your post have created"
 
-
-constrExpectText :: Scenario String
-constrExpectText = anyText `expectOrReply` "Text expected"
-
-
-constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
-
-expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
-expectOrReply pred failMsg = do 
-    update <- expect Just
-    case pred update of
-        Nothing -> do
-            evalReply failMsg
-            expectOrReply pred failMsg
-        Just res -> pure res
-
-
 showPost :: AdvPost -> Scenario ()
-showPost post = undefined
+showPost Post{..} = eval $ SendWith $ F.sendPhoto fileId title [["Like", "Dislike"], ["Back"]]
 
 findS :: Scenario ()
 findS = do
