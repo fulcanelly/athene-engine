@@ -12,33 +12,50 @@ import Control.Monad.Free ( foldFree, liftF, Free )
 import System.Exit ()
 import qualified Data.Map as M
 import Control.Monad ( guard )
-import API.Telegram ( Message (text, Message, message_id, date, from, photo), Update (message, Update, update_id), From (From) )
+import API.Telegram 
 import Data.Maybe ( fromJust )
 import Data.Posts ( AdvPost, AdvPostTemplate (Post) )
 import Control.Exception (throw, catch, Exception, finally)
 import Data.Data
+import Data.Functor.Compose (Compose(Compose, getCompose))
+import API.Keyboard
+import Data.ByteString.Builder.Prim (primMapByteStringBounded)
 
 data MessageEntry
-    = TextNButtons {
-        mText :: String,
-        buttons :: Maybe [[String]]
+    = MessageEntry { 
+        args :: Args
+        , method :: Request
     }
-    | ReplyTextNButtons {
-        mText :: String,
-        buttons :: Maybe [[String]]
-    }
+    deriving Show
 
 sendText :: String -> Command
-sendText text = SendWith $ TextNButtons text Nothing
+sendText text = SendWith $ MessageEntry [("text", text)] SendMessage 
+
+strTreeToButtons :: [[String]] -> String
+strTreeToButtons buttons = kbToJSON . getCompose $ KButton <$> Compose buttons
+
+sendPhoto :: FileId -> String -> [[String]] -> MessageEntry
+sendPhoto fileId caption buttons = MessageEntry {
+        args = [
+            ("reply_markup", strTreeToButtons buttons),
+            ("caption", caption),
+            ("photo", fileId)
+        ],
+        method = SendPhoto
+    } 
+    
+sendTextNButtonsEntry :: String -> [[String]] -> MessageEntry
+sendTextNButtonsEntry text buttons = MessageEntry [
+    ("text", text), ("reply_markup", strTreeToButtons buttons)] SendMessage
 
 
 data Command
     = None
     | SendWith MessageEntry
     | CreatePost AdvPost
-    | LikePost AdvPost 
-    | DislikePost AdvPost 
-    
+    | LikePost AdvPost
+    | DislikePost AdvPost
+
 data DBRequest
 
 data ScenarioF next
@@ -57,10 +74,10 @@ eval :: Command -> Scenario ()
 eval cmd = liftF $ Eval cmd ()
 
 loadMyPost :: Scenario (Maybe AdvPost)
-loadMyPost = liftF $ LoadMyPost id
+loadMyPost = liftF $ LoadMyPost Prelude.id
 
 findRandPost :: Scenario (Maybe AdvPost)
-findRandPost = liftF $ FindRandPost id
+findRandPost = liftF $ FindRandPost Prelude.id
 
 expect :: (Update -> Maybe a) -> Scenario a
 expect pred = liftF $ Expect pred
@@ -91,10 +108,7 @@ execScenarioTest ctx (Expect nextF) = do
 
 execScenarioTest ctx (Eval cmd next) = do
     case cmd of
-        SendWith msg -> case buttons msg of
-            Nothing -> sendText mempty
-            Just bens -> sendText ("; with buttons: " <> show bens)
-            where sendText with = putStrLn $ "replying with: " <> mText msg <> with
+        SendWith msg -> print msg
         _ -> mempty
     pure next
 
