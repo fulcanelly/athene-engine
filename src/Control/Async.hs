@@ -2,6 +2,7 @@ module Control.Async where
 import Control.Concurrent
 import Control.Concurrent.STM (TChan, TVar, readTChan, atomically, newTChan, newTChanIO, writeTChan)
 import Control.Concurrent.STM.TSem
+import Control.Monad (forM_, forever)
 
 {-
 throttling mechanism blueprint
@@ -12,21 +13,34 @@ type Executor = TChan Task -> IO ()
 type Future a = TChan a
 
 
-excPauseS :: TSem -> Int -> TChan Task -> IO b
+excPauseS :: TSem -> Int -> Executor
 excPauseS sem sec chan = do 
     func <- atomically $ do
         waitTSem sem
         readTChan chan
     func ()
-    threadDelay $ sec * 1000 * 1000 -- newTSem 1
+    threadDelay $ sec * 1000 * 1000
     atomically $ signalTSem sem
     excPauseS sem sec chan
 
-executeAllWithPause :: Int -> TChan Task -> IO a
+executeAllWithPause :: Int -> Executor
 executeAllWithPause sec chan = do 
     sem <- atomically $ newTSem 1
     excPauseS sem sec chan
 
+executeAsPossible :: Executor
+executeAsPossible chan = do
+    sem <- atomically $ newTSem 1
+    forever $ exec sem chan 
+    where 
+    exec sem chan = do
+        func <- atomically $ do
+            waitTSem sem
+            readTChan chan
+        func ()
+        atomically $ signalTSem sem
+
+    
 initTasks :: Executor -> IO (TChan Task)
 initTasks execute = do
     chan <- newTChanIO :: IO (TChan Task)
@@ -49,6 +63,20 @@ awaitAndThen future action = do
     action res
 
 
+testSem = do 
+    sem <- atomically $ newTSem 1
+    let jobs = [ sem `runInSem` printPaused i | i <- [1..]]
+    take 30 jobs `forM_` forkIO
+  
+
+    where 
+    runInSem sem io = do
+        atomically $ waitTSem sem
+        io
+        atomically $ signalTSem sem
+    printPaused x = do 
+        print x
+        threadDelay $  100 * 1000
 example = do
     chans <- initTasks $ executeAllWithPause 1
 
