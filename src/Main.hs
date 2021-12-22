@@ -37,6 +37,7 @@ import Control.TInter
 import Control.Exception
 
 import qualified Data.Posts as Post
+import Control.Async
 
 setupDatabase :: IO Connection
 setupDatabase = do
@@ -48,8 +49,9 @@ setupDatabase = do
 main :: HasCallStack => IO ()
 main = do
     conn <- setupDatabase
-    cdata <- setupChatDataS 
-    let handler = safeHandleUpdateS token (SQLnTasks conn undefined) cdata
+    cdata <- setupChatDataS
+    sqlTasks <- SQLnTasks conn <$> initTasks executeAsPossible
+    let handler = safeHandleUpdateS token sqlTasks cdata
     forAllUpdates token handler Nothing `finally` do
-        close conn 
-        
+        close conn
+
