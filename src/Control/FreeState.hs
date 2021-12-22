@@ -36,7 +36,9 @@ data Command
     = None
     | SendWith MessageEntry
     | CreatePost AdvPost
-
+    | LikePost AdvPost 
+    | DislikePost AdvPost 
+    
 data DBRequest
 
 data ScenarioF next
@@ -44,6 +46,7 @@ data ScenarioF next
     | Eval Command next
     | ReturnIf (Update -> Bool) (Scenario next) (Scenario next)
     | FindRandPost (Maybe AdvPost -> next)
+    | LoadMyPost (Maybe AdvPost -> next)
 
 deriving instance Functor ScenarioF
 
@@ -53,6 +56,8 @@ type Scenario = Free ScenarioF
 eval :: Command -> Scenario ()
 eval cmd = liftF $ Eval cmd ()
 
+loadMyPost :: Scenario (Maybe AdvPost)
+loadMyPost = liftF $ LoadMyPost id
 
 findRandPost :: Scenario (Maybe AdvPost)
 findRandPost = liftF $ FindRandPost id
