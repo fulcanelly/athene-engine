@@ -57,6 +57,7 @@ executable athene-engine
     http-conduit,
     status-notifier-item,
     HTTP,
+    stm,
     aeson,
     uri-encode,
     vector,
