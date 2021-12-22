@@ -27,7 +27,7 @@ import Data.Maybe
 import Control.FreeState
 import qualified API.Telegram as T
 
-import API.Keyboard
+import API.ReplyMarkup
 import Control.FreeState
 import Data.Logic
 import Data.Generics.Labels

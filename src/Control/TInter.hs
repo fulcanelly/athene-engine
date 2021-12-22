@@ -14,7 +14,7 @@ import Control.Async ( Task, wrapIOToFuture, runAsync, awaitAndThen, awaitIOAndT
 import Control.FreeState
   
 import Data.Maybe ( fromJust, fromMaybe )
-import API.Keyboard (textButton)
+import API.ReplyMarkup (textButton)
 import qualified Data.Map as M
 import Data.Logic ( lobby )
 import Control.Monad.Free ( foldFree )

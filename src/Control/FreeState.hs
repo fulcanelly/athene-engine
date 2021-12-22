@@ -18,7 +18,7 @@ import Data.Posts ( AdvPost, AdvPostTemplate (Post) )
 import Control.Exception (throw, catch, Exception, finally)
 import Data.Data
 import Data.Functor.Compose (Compose(Compose, getCompose))
-import API.Keyboard
+import API.ReplyMarkup
 import Data.ByteString.Builder.Prim (primMapByteStringBounded)
 
 data MessageEntry

@@ -33,7 +33,7 @@ executable athene-engine
     Data.State,
     API.Telegram,
     Control.FreeState,
-    API.Keyboard,
+    API.ReplyMarkup,
     Data.Logic,
     Control.TInter
   default-extensions:
