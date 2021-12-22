@@ -129,6 +129,34 @@ branch `returnOn` word =
         evalReply $ "returing from: " ++ word
         pure ()
 
+
+data HandlerEntryF a
+    = HandlerEntryF {
+    triggerF :: String
+    , handlerF :: Scenario () 
+    , next :: a
+    } 
+    deriving Functor
+
+type FreeHandler a = Free HandlerEntryF a
+
+
+onText trigger branch = liftF $ HandlerEntryF trigger branch ()
+
+
+offerFew_ :: String -> FreeHandler a -> Scenario a
+offerFew_ = do
+    --let buttons =
+    undefined
+
+test = do 
+    offerFew_ "Lobby" do
+        onText "post" do
+            post `returnOn` "back"
+        onText "find" findS
+        onText "review" $ pure ()
+    test
+
 lobby :: Scenario ()
 lobby = do
     offerFew "Lobby" [
