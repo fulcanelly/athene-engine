@@ -48,6 +48,9 @@ initTasks execute = do
     pure chan
     
  
+runAsync :: TChan Task -> IO a -> IO (Future a)
+runAsync = wrapIOToFuture
+
 wrapIOToFuture :: TChan Task -> IO a -> IO (Future a)
 wrapIOToFuture chan action = do
     var <- newTChanIO  
