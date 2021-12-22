@@ -169,16 +169,22 @@ sendMessageWithArgs token chat text args = do
         params = [("text", text), ("chat_id", show chat)] `M.union` args
 
 
+sendGenericMessageWithArgs :: Token -> ChatId -> Request -> Args -> IO Message
+sendGenericMessageWithArgs token chat req args  = do
+    res <- execArgsTgJson token req params
+    let (Just obj) = res >>= (`getKey` "result") :: Maybe Value
+    let (Success msg) = fromJSON obj
+    pure msg
+    where
+        params = [("chat_id", show chat)] `M.union` args
+
+
+
 type Args = M.Map String String
 type Token = String
 type ChatId = Int
 type MsgId = Int
 type FileId = String 
-
-sendPhoto :: String -> ChatId -> FileId -> M.Map String String -> IO (Maybe Object)
-sendPhoto token chat fileId args = do
-    let params = [("chat_id", show chat), ("file_id" , fileId)] `M.union` args in
-        execArgsTgJson token SendMessage params
 
 answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO Message
 answerWithButtons token chat text btns = do
