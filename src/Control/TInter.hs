@@ -117,7 +117,6 @@ dispatchUpdateS token source update = do
 safeHandleUpdateS :: Token -> TVar ChatData -> Update -> IO ()
 safeHandleUpdateS token chats update = do
     cdata <- readTVarIO chats
-    let chat = fromJust $ chatU update
 
     print cdata
     res <- atomically $ dispatchUpdateS token chats update
