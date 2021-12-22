@@ -83,7 +83,11 @@ iterScenarioTg ctx (Eval cmd next) = do
 
 iterScenarioTg ctx expect @ (Expect pred) = do
     update <- atomically $ readTChan $ mailbox ctx
-    case pred update of
+    case returnTrigger ctx of
+        Just isTimeToReturn -> if isTimeToReturn update then throw ReturnE else handle update
+        Nothing -> handle update
+    where
+    handle update = case pred update of
         Just next -> pure next
         Nothing -> iterScenarioTg ctx expect
 
