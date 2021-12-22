@@ -33,7 +33,7 @@ type family AnyOrId s a where
 data AdvPostTemplate f = Post {
     title :: AnyOrId f String
     , userId :: AnyOrId f Int
-    , fileId :: AnyOrId f Int -- adv photo 
+    , fileId :: AnyOrId f String -- adv photo 
     , link :: AnyOrId f String
     }
 
