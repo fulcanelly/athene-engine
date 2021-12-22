@@ -14,7 +14,7 @@ import qualified Data.Map as M
 import Control.Monad ( guard )
 import API.Telegram ( Message (text, Message, message_id, date, from, photo), Update (message, Update, update_id), From (From) )
 import Data.Maybe ( fromJust )
-import Data.Posts ( AdvPost )
+import Data.Posts ( AdvPost, AdvPostTemplate (Post) )
 import Control.Exception (throw, catch, Exception, finally)
 import Data.Data
 
@@ -37,13 +37,13 @@ data Command
     | SendWith MessageEntry
     | CreatePost AdvPost
 
-
 data DBRequest
 
 data ScenarioF next
     = Expect (Update -> Maybe next)
     | Eval Command next
     | ReturnIf (Update -> Bool) (Scenario next) (Scenario next)
+    | FindRandPost (Maybe AdvPost -> next)
 
 deriving instance Functor ScenarioF
 
@@ -52,6 +52,10 @@ type Scenario = Free ScenarioF
 
 eval :: Command -> Scenario ()
 eval cmd = liftF $ Eval cmd ()
+
+
+findRandPost :: Scenario (Maybe AdvPost)
+findRandPost = liftF $ FindRandPost id
 
 expect :: (Update -> Maybe a) -> Scenario a
 expect pred = liftF $ Expect pred
@@ -83,8 +87,8 @@ execScenarioTest ctx (Expect nextF) = do
 execScenarioTest ctx (Eval cmd next) = do
     case cmd of
         SendWith msg -> case buttons msg of
-            Nothing -> sendText mempty 
-            Just btns -> sendText ("; with buttons: " <> show btns)
+            Nothing -> sendText mempty
+            Just bens -> sendText ("; with buttons: " <> show bens)
             where sendText with = putStrLn $ "replying with: " <> mText msg <> with
         _ -> mempty
     pure next
@@ -93,6 +97,8 @@ execScenarioTest ctx (ReturnIf pred branch falling) =
     (execScenarioTest (CtxC pred) `foldFree` branch) `catchReturn` const handleFalling
     where handleFalling = execScenarioTest ctx `foldFree` falling
 
+
+execScenarioTest _ _ = error "unimplemented"
 
 data ContextC a = CtxC {
     isReturn :: Update -> Bool
