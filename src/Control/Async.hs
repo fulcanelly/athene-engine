@@ -65,6 +65,9 @@ awaitAndThen future action = do
     res <- atomically $ readTChan future
     action res
 
+awaitIOAndThen :: IO (Future t) -> (t -> IO r) -> IO r
+awaitIOAndThen future action =
+    (`awaitAndThen` action) =<< future
 
 testSem = do 
     sem <- atomically $ newTSem 1
