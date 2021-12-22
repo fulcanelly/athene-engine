@@ -67,7 +67,7 @@ fetchPost = undefined
 
 findS :: Scenario ()
 findS = do
-    post <- fetchPost
+    post <- findRandPost 
     maybe onAbsent onPresent post
     where
     onAbsent = do 
