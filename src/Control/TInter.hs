@@ -7,19 +7,34 @@
 module Control.TInter where
 
 
-import Control.Concurrent
+import Control.Concurrent ( forkIO, ThreadId )
 import API.Telegram
+    ( answer, answerWithButtons, chatU, ChatId, Token, Update )
 import Control.Async ( Task )
 import Control.FreeState
-import Data.Maybe
+    ( Command(SendWith),
+      MessageEntry(TextNButtons, mText, buttons),
+      ScenarioF(Expect, Eval) )
+import Data.Maybe ( fromJust )
 import API.Keyboard (textButton)
 import qualified Data.Map as M
-import Data.Logic
-import Control.Monad.Free
-import Control.Exception
+import Data.Logic ( lobby )
+import Control.Monad.Free ( foldFree )
+import Control.Exception ( SomeException, catch )
 import GHC.Conc (readTVar, atomically, writeTVar)
-import Control.Monad
+import Control.Monad ()
 import Control.Concurrent.STM
+    ( STM,
+      TVar,
+      atomically,
+      newTVarIO,
+      readTVar,
+      readTVarIO,
+      writeTVar,
+      newTChan,
+      readTChan,
+      writeTChan,
+      TChan )
 
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
@@ -97,6 +112,7 @@ startNewScenario chatRem ctx = forkIO do
     startIter ctx `catchAny` handleInterpreterFailure chatRem ctx
 
 
+dispatchUpdateS :: String -> TVar ChatData -> Update -> STM (Either () (IO ()))
 dispatchUpdateS token source update = do
     cdata <- readTVar source
     let chat = fromJust $ chatU update
@@ -116,9 +132,7 @@ dispatchUpdateS token source update = do
 
 safeHandleUpdateS :: Token -> TVar ChatData -> Update -> IO ()
 safeHandleUpdateS token chats update = do
-    cdata <- readTVarIO chats
-
-    print cdata
+    print =<< readTVarIO chats 
     res <- atomically $ dispatchUpdateS token chats update
     either pure Prelude.id res
     
