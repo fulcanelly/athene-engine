@@ -10,7 +10,7 @@ module Control.TInter where
 import Control.Concurrent ( forkIO, ThreadId )
 import API.Telegram
     ( answer, answerWithButtons, chatU, ChatId, Token, Update )
-import Control.Async ( Task )
+import Control.Async ( Task, wrapIOToFuture, runAsync, awaitAndThen, awaitIOAndThen )
 import Control.FreeState
     ( Command(SendWith),
       MessageEntry(TextNButtons, mText, buttons),
@@ -43,15 +43,16 @@ catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
 
 
-data UpdateOrCommand
+data MixedCommand
     = Update ! Update
+    | AdvOfferFrom ! AdvPost 
     | Stop
 
 
 data SQLnTasks
     = SQLnTasks {
         conn :: Connection,
-        tasks :: forall x. TChan (Connection -> IO x)
+        tasks :: TChan Task
     }
 
 data Context
@@ -106,10 +107,12 @@ iterScenarioTg ctx (ReturnIf pred branch falling) = do
     where handleFalling = iterScenarioTg ctx `foldFree` falling
 
 iterScenarioTg Context{..} (FindRandPost func) = do
-    mpost <- findRandomPostExcluding chat (conn sqlTasks)
-    pure $ func mpost
+    tasks sqlTasks `runAsync` do 
+        findRandomPostExcluding chat (conn sqlTasks) 
+    `awaitIOAndThen` (pure . func)
 
---iterScenarioTg _ _ = error "unimplemented"
+
+iterScenarioTg _ _ = error "unimplemented"
 
 returnContext :: Context -> (Update -> Bool) -> Context
 returnContext ctx pred = ctx { returnTrigger = Just pred }
