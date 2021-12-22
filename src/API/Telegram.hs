@@ -1,5 +1,8 @@
 
 
+{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ConstraintKinds #-}
+
 module API.Telegram where
 
 import qualified Network.HTTP.Conduit as HC
@@ -91,12 +94,14 @@ token = "2094069209:AAHoBnp3rbASgqR4ZNzgN26MJZWT8jW9xX4"
 data Request =
     GetMe |
     GetUpdates |
-    SendMessage
+    SendMessage |
+    SendPhoto
 
 instance Show Request where
     show GetMe = "getMe"
     show GetUpdates = "getUpdates"
     show SendMessage = "sendMessage"
+    show SendPhoto = "sendPhoto"
 
 
 pack :: [Char] -> LB.ByteString
@@ -168,7 +173,12 @@ type Args = M.Map String String
 type Token = String
 type ChatId = Int
 type MsgId = Int
+type FileId = String 
 
+sendPhoto :: String -> ChatId -> FileId -> M.Map String String -> IO (Maybe Object)
+sendPhoto token chat fileId args = do
+    let params = [("chat_id", show chat), ("file_id" , fileId)] `M.union` args in
+        execArgsTgJson token SendMessage params
 
 answerWithButtons :: Token -> ChatId -> String -> [[KeyboardButton]] -> IO Message
 answerWithButtons token chat text btns = do
