@@ -14,13 +14,13 @@ import Control.Async ( Task )
 import Control.FreeState
     ( Command(SendWith),
       MessageEntry(TextNButtons, mText, buttons),
-      ScenarioF(Expect, Eval, ReturnIf), catchReturn )
+      ScenarioF(Expect, Eval, ReturnIf), catchReturn, ReturnE (ReturnE) )
 import Data.Maybe ( fromJust )
 import API.Keyboard (textButton)
 import qualified Data.Map as M
 import Data.Logic ( lobby )
 import Control.Monad.Free ( foldFree )
-import Control.Exception ( SomeException, catch )
+import Control.Exception ( SomeException, catch, throw )
 import GHC.Conc (readTVar, atomically, writeTVar)
 import Control.Monad ()
 import Control.Concurrent.STM
@@ -52,12 +52,9 @@ data Context
         , sqlTasks :: TChan Task
         , throttleTasks :: TChan Task
         , chat :: Int
+        , returnTrigger :: Maybe (Update -> Bool)
     }
-    | ReturningContext {
-        inner :: Context
-        , pred :: Update -> Bool
-    }
-    
+
 
 instance Show Context where
     show x = "<<Context>>"
@@ -76,7 +73,6 @@ answerWith Context {..} entry = do
 
     where toButtons = map (map textButton)
 
-answerWith ReturningContext{..} entry = answerWith inner entry
 
 iterScenarioTg :: Context -> ScenarioF a -> IO a
 iterScenarioTg ctx (Eval cmd next) = do
@@ -91,10 +87,13 @@ iterScenarioTg ctx expect @ (Expect pred) = do
         Just next -> pure next
         Nothing -> iterScenarioTg ctx expect
 
+
 iterScenarioTg ctx (ReturnIf pred branch falling) = do 
-    foldFree (iterScenarioTg $ ReturningContext ctx pred) branch `catchReturn` const handleFalling 
+    foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling 
     where handleFalling = iterScenarioTg ctx `foldFree` falling
 
+returnContext :: Context -> (Update -> Bool) -> Context
+returnContext ctx pred = ctx { returnTrigger = Just pred }
     
 --iterScenarioTg ctx _ = error "unimplemented"
 
@@ -105,7 +104,9 @@ startIter ctx = foldFree (iterScenarioTg ctx) lobby
 newContext :: String -> Update -> STM Context
 newContext token update = Context
     <$> newTChan <*> pure token
-    <*> newTChan <*> newTChan <*> pure (fromJust $ chatU update)
+    <*> newTChan <*> newTChan 
+    <*> pure (fromJust $ chatU update)
+    <*> pure Nothing 
 
 type ChatRemover = STM ()
 
