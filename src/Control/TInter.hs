@@ -1,39 +1,43 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Control.TInter where
 
 
-import Control.Concurrent 
+import Control.Concurrent
 import API.Telegram
 import Control.Async ( Task )
-import Control.FreeState 
+import Control.FreeState
 import Data.Maybe
 import API.Keyboard (textButton)
 import qualified Data.Map as M
 import Data.Logic
 import Control.Monad.Free
 import Control.Exception
+import GHC.Conc (readTVar, atomically, writeTVar)
+import Control.Monad
+import Control.Concurrent.STM
+
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
 
 
--- * make interpreter interceptor which will log and remove failed tasks
-
-data UpdateOrCommand 
-    = Update ! Update 
+data UpdateOrCommand
+    = Update ! Update
     | Stop
 
 data Context
     = Context {
-        mailbox :: Chan Update
+        mailbox :: TChan Update
         , tokenC :: String
-        , sqlTasks :: Chan Task
-        , throttleTasks :: Chan Task
+        , sqlTasks :: TChan Task
+        , throttleTasks :: TChan Task
         , chat :: Int
-    } 
+    }
 
 instance Show Context where
     show x = "<<Context>>"
@@ -42,7 +46,7 @@ type ChatData = M.Map ChatId Context
 
 answerWith :: Context -> MessageEntry -> IO ()
 answerWith Context {..} entry = do
-    --let (Just mid) = msgIdU update
+
     let mid = error "no way to get it yet"
     let text = mText entry
     case buttons entry of
@@ -50,78 +54,76 @@ answerWith Context {..} entry = do
       Just butns -> answerWithButtons tokenC chat text (toButtons butns)
     pure ()
 
-    where toButtons = map (map textButton)  
-
--- >>
-test = pure ""
+    where toButtons = map (map textButton)
 
 iterScenarioTg :: Context -> ScenarioF a -> IO a
 iterScenarioTg ctx (Eval cmd next) = do
-    case cmd of 
+    case cmd of
         SendWith entry -> answerWith ctx entry
-        _ -> error "unimplemented behavior"   
+        _ -> error "unimplemented behavior"
     pure next
 
-iterScenarioTg ctx expect@ (Expect pred) = do
-    update <- readChan $ mailbox ctx
-    case pred update of 
+iterScenarioTg ctx expect @ (Expect pred) = do
+    update <- atomically $ readTChan $ mailbox ctx
+    case pred update of
         Just next -> pure next
         Nothing -> iterScenarioTg ctx expect
-        
-iterScenarioTg ctx _ = error "unimplemented" 
+
+iterScenarioTg ctx _ = error "unimplemented"
 
 
 startIter :: Context -> IO ()
 startIter ctx = foldFree (iterScenarioTg ctx) lobby
 
-newContext :: Token -> Update -> IO Context
-newContext token update = Context 
-    <$> newChan <*> pure token 
-    <*> newChan <*> newChan <*> pure (fromJust $ chatU update)
+newContext :: String -> Update -> STM Context
+newContext token update = Context
+    <$> newTChan <*> pure token
+    <*> newTChan <*> newTChan <*> pure (fromJust $ chatU update)
 
-dispatchUpdate :: Token -> ChatData -> Update -> IO ChatData
-dispatchUpdate token cdata update = do
-    let chat = fromJust $ chatU update in case chat `M.lookup` cdata of 
+type ChatRemover = STM ()
+
+removeChatSync :: TVar ChatData -> ChatId -> ChatRemover
+removeChatSync tcdata chat = do
+    cdata <- readTVar tcdata
+    writeTVar tcdata (chat `M.delete` cdata)
+
+handleInterpreterFailure :: ChatRemover -> Context -> SomeException -> IO ()
+handleInterpreterFailure chatRem ctx err = do
+    atomically chatRem 
+    answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) (Just [["restart"]]))
+
+startNewScenario :: ChatRemover -> Context -> IO ThreadId
+startNewScenario chatRem ctx = forkIO do
+    startIter ctx `catchAny` handleInterpreterFailure chatRem ctx
+
+
+dispatchUpdateS token source update = do
+    cdata <- readTVar source
+    let chat = fromJust $ chatU update
+
+    case chat `M.lookup` cdata of
         Just ctx -> do
-            writeChan (mailbox ctx) update 
-            pure $ cdata
+            writeTChan (mailbox ctx) update
+            pure $ Left ()
+
         Nothing -> do
             ctx <- newContext token update
-            forkIO $ startIter ctx
-            pure $ (chat `M.insert` ctx) cdata
+            writeTVar source $ (chat `M.insert` ctx) cdata
+            pure $ Right do 
+                startNewScenario (removeChatSync source chat) ctx
+                pure ()
+ 
 
+safeHandleUpdateS :: Token -> TVar ChatData -> Update -> IO ()
+safeHandleUpdateS token chats update = do
+    cdata <- readTVarIO chats
+    let chat = fromJust $ chatU update
 
-dispatchUpdate_ :: Token -> MVar ChatData -> Update -> IO ()
-dispatchUpdate_ token var update = do
-    cdata <- takeMVar var
-    res <- dispatchUpdate token cdata update
-    putMVar var res 
-
-safeDispatchUpdate :: Token -> MVar ChatData -> Update -> IO ()
-safeDispatchUpdate token var update = do
-    cdata <- takeMVar var
     print cdata
-
-    let chat = fromJust $ chatU update 
+    res <- atomically $ dispatchUpdateS token chats update
+    either pure Prelude.id res
     
-    res <- case chat `M.lookup` cdata of 
-            Just ctx -> do
-                writeChan (mailbox ctx) update 
-                pure $ cdata
-            Nothing -> do
-                ctx <- newContext token update
-                
-                let computation = catchAny (startIter ctx) \err -> do 
-                    --on high load it can lead to data race so it need to bee rewritten to work atomically 
-                        cdata <- takeMVar var        
-                        answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) (Just [["restart"]]))
-                        putMVar var (chat `M.delete` cdata)
 
-                forkIO computation
 
-                pure $ (chat `M.insert` ctx) cdata
-    putMVar var res
-
-setupChatData :: IO (MVar ChatData)
-setupChatData = do
-    newMVar []
+setupChatDataS :: IO (TVar ChatData)
+setupChatDataS = newTVarIO []
