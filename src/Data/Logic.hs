@@ -7,6 +7,7 @@ import Data.Posts ( AdvPost, AdvPostTemplate(Post) )
 import Control.Monad.Free ()
 import Data.List (find)
 import API.Telegram
+import Data.Maybe (isJust)
 
 data HandlerEntry a
     = HandlerEntry {
@@ -53,17 +54,33 @@ post = do
     where
     create = do
         evalReply "please enter title"
-        title <- expect anyText
+        title <- constrExpectText
         evalReply "please send heading photo"
-        fileId <- expect anyPhoto
+        fileId <- constrExpectPhoto
         evalReply "now send join link to you channel "
-        link <- expect anyText
+        link <- constrExpectText
         eval $ CreatePost $ Post title undefined fileId link
         evalReply "Ok! your post have created"
 
 
-fetchPost :: Scenario (Maybe AdvPost)
-fetchPost = undefined
+constrExpectText :: Scenario String
+constrExpectText = anyText `expectOrReply` "Text expected"
+
+
+constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
+
+expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
+expectOrReply pred failMsg = do 
+    update <- expect Just
+    case pred update of 
+        Nothing -> do
+            evalReply failMsg
+            expectOrReply pred failMsg
+        Just res -> pure res
+        
+
+showPost :: AdvPost -> Scenario ()
+showPost post = undefined 
 
 findS :: Scenario ()
 findS = do
@@ -77,17 +94,16 @@ findS = do
             ] 
 
     onPresent post = do
-        --eval $ ShowPost
+        showPost post 
         autoHandleFew "What you think about this channel ?" [
             HandlerEntry "Like" do
-                -- eval LikePost post
+                eval $ LikePost post
                 findS,
             HandlerEntry "Dislike" do
-                -- eval DislikePost post
+                eval $ DislikePost post
                 findS,
             HandlerEntry "Back" $ pure ()
             ] 
-    --eval $ ShowPost
 
 
 review = do
