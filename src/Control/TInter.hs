@@ -9,12 +9,10 @@ module Control.TInter where
 
 import Control.Concurrent ( forkIO, ThreadId )
 import API.Telegram
-    ( answer, answerWithButtons, chatU, ChatId, Token, Update )
+    ( answer, answerWithButtons, chatU, ChatId, Token, Update, sendGenericMessageWithArgs )
 import Control.Async ( Task, wrapIOToFuture, runAsync, awaitAndThen, awaitIOAndThen )
 import Control.FreeState
-    ( Command(SendWith),
-      MessageEntry(TextNButtons, mText, buttons),
-      ScenarioF(Expect, Eval, ReturnIf, FindRandPost), catchReturn, ReturnE (ReturnE) )
+  
 import Data.Maybe ( fromJust, fromMaybe )
 import API.Keyboard (textButton)
 import qualified Data.Map as M
@@ -22,7 +20,7 @@ import Data.Logic ( lobby )
 import Control.Monad.Free ( foldFree )
 import Control.Exception ( SomeException, catch, throw )
 import GHC.Conc (readTVar, atomically, writeTVar)
-import Control.Monad ()
+import Control.Monad (void)
 import Control.Concurrent.STM
     ( STM,
       TVar,
@@ -73,21 +71,17 @@ type ChatData = M.Map ChatId Context
 
 answerWith :: Context -> MessageEntry -> IO ()
 answerWith Context {..} entry = do
-
     let mid = error "no way to get it yet"
-    let text = mText entry
-    case buttons entry of
-        Nothing -> answer tokenC chat text
-        Just butns -> answerWithButtons tokenC chat text (toButtons butns)
-    pure ()
-
-    where toButtons = map (map textButton)
-
+    void $ sendGenericMessageWithArgs tokenC chat (method entry) (args entry)
 
 iterScenarioTg :: Context -> ScenarioF a -> IO a
-iterScenarioTg ctx (Eval cmd next) = do
+iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
     case cmd of
         SendWith entry -> answerWith ctx entry
+        CreatePost post -> tasks sqlTasks `runAsync` do 
+            createNewPost post (conn sqlTasks) 
+            `awaitIOAndThen` do
+                const $ pure ()
         _ -> error "unimplemented behavior"
     pure next
 
@@ -139,7 +133,7 @@ removeChatSync tcdata chat = do
 handleInterpreterFailure :: ChatRemover -> Context -> SomeException -> IO ()
 handleInterpreterFailure chatRem ctx err = do
     atomically chatRem
-    answerWith ctx (TextNButtons ("something went wrong\n\n" ++  show err) (Just [["restart"]]))
+    answerWith ctx (sendTextNButtonsEntry ("something went wrong\n\n" ++  show err) [["restart"]])
 
 startNewScenario :: ChatRemover -> Context -> IO ThreadId
 startNewScenario chatRem ctx = forkIO do
