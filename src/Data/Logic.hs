@@ -30,8 +30,8 @@ handleFewWithGreeting entries greeting retryMsg = do
     where
     buttons = map ((: []) . trigger) entries
 
-autoHandleFew :: String -> [HandlerEntry b] -> Scenario b
-autoHandleFew greeting entries = handleFewWithGreeting entries greeting wrongOptionMessage
+offerFew :: String -> [HandlerEntry b] -> Scenario b
+offerFew greeting entries = handleFewWithGreeting entries greeting wrongOptionMessage
 
 expectFew :: Foldable t => t String -> Scenario (Maybe String)
 expectFew list = do
@@ -47,7 +47,7 @@ evalReply = eval . sendText
 
 post :: Scenario ()
 post = do
-    autoHandleFew "It's your post settings" [
+    offerFew "It's your post settings" [
         HandlerEntry "create" create,
         HandlerEntry "back" $ pure ()
         ] 
@@ -88,14 +88,14 @@ findS = do
     maybe onAbsent onPresent post
     where
     onAbsent = do 
-        autoHandleFew "There are no more post /any post yet :/" [
+        offerFew "There are no more post /any post yet :/" [
             HandlerEntry "Back" $ pure (),
             HandlerEntry "Try again" findS
             ] 
 
     onPresent post = do
         showPost post 
-        autoHandleFew "What you think about this channel ?" [
+        offerFew "What you think about this channel ?" [
             HandlerEntry "Like" do
                 eval $ LikePost post
                 findS,
@@ -121,7 +121,7 @@ branch `returnOn` word =
 
 lobby :: Scenario ()
 lobby = do
-    autoHandleFew "Lobby" [
+    offerFew "Lobby" [
         HandlerEntry "post" (post `returnOn` "back") ,
         HandlerEntry "find"  findS,
         HandlerEntry "review" review
