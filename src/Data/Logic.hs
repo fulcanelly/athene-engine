@@ -7,7 +7,7 @@
 module Data.Logic where
 import Control.FreeState as F
 
-import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId) )
+import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId, link) )
 import Control.Monad.Free (Free (Pure, Free), foldFree, liftF)
 import Data.List (find)
 import API.Telegram
@@ -24,6 +24,17 @@ data HandlerEntry a
     }
 
 wrongOptionMessage = "Wrong option, try again"
+
+
+handleFew :: [HandlerEntry b] -> Scenario b
+handleFew entries  = do
+    text <- expect anyText
+    case ((text ==) . trigger) `find` entries of 
+        Nothing -> do
+            eval $ sendText wrongOptionMessage
+            handleFew entries 
+        Just one -> handler one
+    where
 
 
 handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
@@ -86,8 +97,8 @@ evalReply = eval . sendText
 post :: Scenario ()
 post = do
     offerFew "It's your post settings" [
-        HandlerEntry "create" create,
-        HandlerEntry "back" $ pure ()
+        HandlerEntry "Create" create,
+        HandlerEntry "Back" $ pure ()
         ] 
     where
     create = do
@@ -103,8 +114,9 @@ post = do
         eval $ CreatePost $ Post title chatId fileId link
         evalReply "Ok! your post have created"
 
-showPost :: AdvPost -> Scenario ()
-showPost Post{..} = eval $ SendWith $ F.sendPhoto fileId title [["Like", "Dislike"], ["Back"]]
+showPost :: AdvPost -> String -> Scenario ()
+showPost Post{..} msg = eval $ SendWith $ F.sendPhoto fileId caption [["Like", "Dislike"], ["Back"]]
+    where caption = title <> "\n\n" <> link <> msg
 
 findS :: Scenario ()
 findS = do
@@ -118,8 +130,8 @@ findS = do
             ]
 
     onPresent post = do
-        showPost post
-        offerFew "What you think about this channel ?" [
+        showPost post "\n\n\nWhat you think about this channel ?" 
+        handleFew [
             HandlerEntry "Like" do
                 eval $ LikePost post
                 findS,
@@ -140,14 +152,13 @@ isTextMatchU text update = case textU update of
 
 branch `returnOn` word =
     returnIf (isTextMatchU word) branch do
-        evalReply $ "returing from: " ++ word
         pure ()
 
 lobby :: Scenario ()
 lobby = do
     offerFew "Lobby" [
-        HandlerEntry "post" (post `returnOn` "back") ,
-        HandlerEntry "find"  findS,
+        HandlerEntry "post" (post `returnOn` "Back"),
+        HandlerEntry "find"  (findS `returnOn` "Back"),
         HandlerEntry "review" review
         ]
     lobby
