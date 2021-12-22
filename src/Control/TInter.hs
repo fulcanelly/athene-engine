@@ -36,6 +36,7 @@ import Control.Concurrent.STM
       writeTChan,
       TChan )
 import Database.SQLite.Simple
+import Data.Posts
 
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
@@ -50,7 +51,7 @@ data UpdateOrCommand
 data SQLnTasks
     = SQLnTasks {
         conn :: Connection,
-        tasks :: TChan Task
+        tasks :: forall x. TChan (Connection -> IO x)
     }
 
 data Context
@@ -104,8 +105,9 @@ iterScenarioTg ctx (ReturnIf pred branch falling) = do
     foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling
     where handleFalling = iterScenarioTg ctx `foldFree` falling
 
-iterScenarioTg ctx (FindRandPost func) = do
-    pure undefined
+iterScenarioTg Context{..} (FindRandPost func) = do
+    mpost <- findRandomPostExcluding chat (conn sqlTasks)
+    pure $ func mpost
 
 --iterScenarioTg _ _ = error "unimplemented"
 
