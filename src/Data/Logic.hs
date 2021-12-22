@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Data.Logic where
 import Control.FreeState
@@ -8,6 +9,8 @@ import Control.Monad.Free ()
 import Data.List (find)
 import API.Telegram
 import Data.Maybe (isJust)
+import Data.Generics.Labels ()
+import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 
 data HandlerEntry a
     = HandlerEntry {
@@ -39,8 +42,12 @@ expectFew list = do
     pure if text `elem` list then Just text else Nothing
 
 
-anyPhoto :: Num a => b -> Maybe a
-anyPhoto = const $ Just 0
+anyPhoto :: Update -> Maybe String
+anyPhoto update =
+    update ^? #message
+    . _Just . #photo 
+    . _Just . ix 0 . #file_id
+
 
 evalReply :: String -> Scenario ()
 evalReply = eval . sendText
@@ -72,29 +79,29 @@ constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
 expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
 expectOrReply pred failMsg = do 
     update <- expect Just
-    case pred update of 
+    case pred update of
         Nothing -> do
             evalReply failMsg
             expectOrReply pred failMsg
         Just res -> pure res
-        
+
 
 showPost :: AdvPost -> Scenario ()
-showPost post = undefined 
+showPost post = undefined
 
 findS :: Scenario ()
 findS = do
-    post <- findRandPost 
+    post <- findRandPost
     maybe onAbsent onPresent post
     where
-    onAbsent = do 
+    onAbsent = do
         offerFew "There are no more post /any post yet :/" [
             HandlerEntry "Back" $ pure (),
             HandlerEntry "Try again" findS
-            ] 
+            ]
 
     onPresent post = do
-        showPost post 
+        showPost post
         offerFew "What you think about this channel ?" [
             HandlerEntry "Like" do
                 eval $ LikePost post
@@ -103,19 +110,19 @@ findS = do
                 eval $ DislikePost post
                 findS,
             HandlerEntry "Back" $ pure ()
-            ] 
+            ]
 
 
 review = do
     pure ()
 
 isTextMatchU :: String -> Update -> Bool
-isTextMatchU text update = case textU update of 
-  Nothing -> False 
+isTextMatchU text update = case textU update of
+  Nothing -> False
   Just s -> text == s
-   
-branch `returnOn` word = 
-    returnIf (isTextMatchU word) branch do 
+
+branch `returnOn` word =
+    returnIf (isTextMatchU word) branch do
         evalReply $ "returing from: " ++ word
         pure ()
 
@@ -125,5 +132,5 @@ lobby = do
         HandlerEntry "post" (post `returnOn` "back") ,
         HandlerEntry "find"  findS,
         HandlerEntry "review" review
-        ] 
+        ]
     lobby
