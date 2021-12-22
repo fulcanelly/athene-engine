@@ -36,13 +36,20 @@ import GHC.Stack
 import Control.TInter
 import Control.Exception
 
+import qualified Data.Posts as Post
 
+setupDatabase :: IO Connection
+setupDatabase = do
+    conn <- open "db.sqlite"
+    Post.setupDB conn
+    pure conn
 
 
 main :: HasCallStack => IO ()
 main = do
+    conn <- setupDatabase
     cdata <- setupChatDataS 
-    let handler = safeHandleUpdateS token cdata
-    forAllUpdates token handler Nothing
-    pure ()
-
+    let handler = safeHandleUpdateS token (SQLnTasks conn undefined) cdata
+    forAllUpdates token handler Nothing `finally` do
+        close conn 
+        
