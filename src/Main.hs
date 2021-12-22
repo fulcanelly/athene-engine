@@ -34,14 +34,15 @@ import Data.Generics.Labels
 import Control.Lens
 import GHC.Stack
 import Control.TInter
+import Control.Exception
 
 
 
 
 main :: HasCallStack => IO ()
 main = do
-    cdata <- setupChatData
-    let handler = dispatchUpdate_ token cdata
+    cdata <- setupChatDataS 
+    let handler = safeHandleUpdateS token cdata
     forAllUpdates token handler Nothing
     pure ()
 
