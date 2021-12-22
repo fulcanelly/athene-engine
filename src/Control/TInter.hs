@@ -14,7 +14,7 @@ import Control.Async ( Task )
 import Control.FreeState
     ( Command(SendWith),
       MessageEntry(TextNButtons, mText, buttons),
-      ScenarioF(Expect, Eval, ReturnIf), catchReturn, ReturnE (ReturnE) )
+      ScenarioF(Expect, Eval, ReturnIf, FindRandPost), catchReturn, ReturnE (ReturnE) )
 import Data.Maybe ( fromJust, fromMaybe )
 import API.Keyboard (textButton)
 import qualified Data.Map as M
@@ -35,6 +35,7 @@ import Control.Concurrent.STM
       readTChan,
       writeTChan,
       TChan )
+import Database.SQLite.Simple
 
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
@@ -45,11 +46,18 @@ data UpdateOrCommand
     = Update ! Update
     | Stop
 
+
+data SQLnTasks
+    = SQLnTasks {
+        conn :: Connection,
+        tasks :: TChan Task
+    }
+
 data Context
     = Context {
         mailbox :: TChan Update --todo: change to TChan UpdateOrCommand. reason: suspending old chats
         , tokenC :: String
-        , sqlTasks :: TChan Task
+        , sqlTasks :: SQLnTasks
         , throttleTasks :: TChan Task
         , chat :: Int
         , returnTrigger :: Maybe (Update -> Bool)
@@ -67,8 +75,8 @@ answerWith Context {..} entry = do
     let mid = error "no way to get it yet"
     let text = mText entry
     case buttons entry of
-      Nothing -> answer tokenC chat text
-      Just butns -> answerWithButtons tokenC chat text (toButtons butns)
+        Nothing -> answer tokenC chat text
+        Just butns -> answerWithButtons tokenC chat text (toButtons butns)
     pure ()
 
     where toButtons = map (map textButton)
@@ -92,23 +100,27 @@ iterScenarioTg ctx expect @ (Expect pred) = do
         Nothing -> iterScenarioTg ctx expect
 
 
-iterScenarioTg ctx (ReturnIf pred branch falling) = do 
-    foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling 
+iterScenarioTg ctx (ReturnIf pred branch falling) = do
+    foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling
     where handleFalling = iterScenarioTg ctx `foldFree` falling
+
+iterScenarioTg ctx (FindRandPost func) = do
+    pure undefined
+
+--iterScenarioTg _ _ = error "unimplemented"
 
 returnContext :: Context -> (Update -> Bool) -> Context
 returnContext ctx pred = ctx { returnTrigger = Just pred }
-    
---iterScenarioTg ctx _ = error "unimplemented"
+
 
 
 startIter :: Context -> IO ()
 startIter ctx = foldFree (iterScenarioTg ctx) lobby
 
-newContext :: String -> Update -> STM Context
-newContext token update = Context
+newContext :: Token -> SQLnTasks -> Update -> STM Context
+newContext token tasks update = Context
     <$> newTChan <*> pure token
-    <*> newTChan <*> newTChan
+    <*> pure tasks <*> newTChan
     <*> pure (fromJust $ chatU update)
     <*> pure Nothing
 
@@ -128,13 +140,11 @@ startNewScenario :: ChatRemover -> Context -> IO ThreadId
 startNewScenario chatRem ctx = forkIO do
     startIter ctx `catchAny` handleInterpreterFailure chatRem ctx
 
---dispatchUpdateS :: String -> TVar ChatData -> Update -> STM (Maybe (IO ()))
-
-dispatchUpdateS :: String
+dispatchUpdateS :: (Update -> STM Context)
     -> TVar ChatData
     -> Update
     -> STM (Maybe (ChatRemover, Context))
-dispatchUpdateS token source update = do
+dispatchUpdateS contextFactory source update = do
     cdata <- readTVar source
     let chat = fromJust $ chatU update
 
@@ -144,19 +154,20 @@ dispatchUpdateS token source update = do
             pure Nothing
 
         Nothing -> do
-            ctx <- newContext token update
+            ctx <- contextFactory update
             writeTVar source $ (chat `M.insert` ctx) cdata
             pure $ Just (removeChatSync source chat, ctx)
 
-safeHandleUpdateS :: Token -> TVar ChatData -> Update -> IO ()
-safeHandleUpdateS token chats update = do
+safeHandleUpdateS :: Token -> SQLnTasks -> TVar ChatData -> Update -> IO ()
+safeHandleUpdateS token sqlTasks chats update = do
+    let contextFactory = newContext token sqlTasks
     print =<< readTVarIO chats
-    res <- atomically $ dispatchUpdateS token chats update
+    res <- atomically $ dispatchUpdateS contextFactory chats update
     maybe mempty createScenario res
-    where 
+    where
     createScenario (chatRemover, ctx) = do
         startNewScenario chatRemover ctx
-        mempty 
+        mempty
 
 
 setupChatDataS :: IO (TVar ChatData)
