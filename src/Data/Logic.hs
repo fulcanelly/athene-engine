@@ -16,6 +16,7 @@ import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
+import Control.Monad (when)
 
 data HandlerEntry a
     = HandlerEntry {
@@ -38,8 +39,6 @@ handleFewWithGreeting entries greeting retryMsg = do
     where
     buttons = map ((: []) . trigger) entries
 
-offerFew :: String -> [HandlerEntry b] -> Scenario b
-offerFew greeting entries = handleFewWithGreeting entries greeting wrongOptionMessage
 
 expectFew :: Foldable t => t String -> Scenario (Maybe String)
 expectFew list = do
@@ -83,12 +82,19 @@ anyText update = update ^? #message . _Just . #text . _Just
 evalReply :: String -> Scenario ()
 evalReply = eval . sendText
 
+checkIsHavePost = undefined 
+
 post :: Scenario ()
 post = do
-    offerFew "It's your post settings" [
-        HandlerEntry "create" create,
-        HandlerEntry "back" $ pure ()
-        ] 
+    exists <- checkIsHavePost
+    offerFew "It's your post settings" do
+        onText "create" create
+        onText "back" $ pure ()
+        when exists do
+            onText "edit" $ pure ()
+            onText "show" $ pure ()
+            onText "delete" $ pure ()
+
     where
     create = do
         evalReply "please enter title"
@@ -112,22 +118,22 @@ findS = do
     maybe onAbsent onPresent post
     where
     onAbsent = do
-        offerFew "There are no more post /any post yet :/" [
-            HandlerEntry "Back" $ pure (),
-            HandlerEntry "Try again" findS
-            ]
+        offerFew "There are no more post /any post yet :/" do 
+            onText "Back" $ pure ()
+            onText "Try again" findS
+            
 
     onPresent post = do
         showPost post
-        offerFew "What you think about this channel ?" [
-            HandlerEntry "Like" do
+        offerFew "What you think about this channel ?" do
+            onText "Like" do
                 eval $ LikePost post
-                findS,
-            HandlerEntry "Dislike" do
+                findS
+            onText "Dislike" do
                 eval $ DislikePost post
-                findS,
-            HandlerEntry "Back" $ pure ()
-            ]
+                findS
+            onText "Back" $ pure ()
+            
 
 
 review = do
@@ -158,24 +164,16 @@ type FreeHandler a = Free HandlerEntryF a
 onText trigger branch = liftF $ HandlerEntryF trigger branch ()
 
 
-offerFew_ :: String -> FreeHandler a -> Scenario a
-offerFew_ = do
+offerFew :: String -> FreeHandler a -> Scenario a
+offerFew = do
     --let buttons =
     undefined
 
-test = do 
-    offerFew_ "Lobby" do
+lobby = do 
+    offerFew "Lobby" do
         onText "post" do
             post `returnOn` "back"
         onText "find" findS
         onText "review" $ pure ()
-    test
-
-lobby :: Scenario ()
-lobby = do
-    offerFew "Lobby" [
-        HandlerEntry "post" (post `returnOn` "back") ,
-        HandlerEntry "find"  findS,
-        HandlerEntry "review" review
-        ]
     lobby
+
