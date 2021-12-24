@@ -165,10 +165,12 @@ lobby = do
         ]
     lobby
 
-onPostLike :: Scenario a -> Int -> Scenario ()
+onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
     offerFew ("You got " <> show count <> " adv offers") [
-            HandlerEntry "Show" review,
-            HandlerEntry "Latter" $ void continue
+            HandlerEntry "Show" do
+                review
+                continue
+            , HandlerEntry "Latter"  continue
         ]
     
