@@ -34,7 +34,7 @@ createOrUpdateIfPresent subject userId state conn = do
         ) subject userId state conn  
 
 updateLikeEntry :: ChatId -> ChatId -> Bool -> Connection -> IO ()
-updateLikeEntry subject userId state conn = execute conn "UPDATE channel_favorites SET is_liked = ? WHERE subject = ? AND user_id = ?" (True, subject, userId)
+updateLikeEntry subject userId state conn = execute conn "UPDATE channel_favorites SET is_liked = ? WHERE subject = ? AND user_id = ?" (state, subject, userId)
 
 createLikeEntry :: ChatId -> ChatId -> Bool -> Connection -> IO ()
 createLikeEntry subject userId state conn = (conn `execute` "INSERT INTO channel_favorites VALUES (?, ?, ?)") (state, subject, userId)
