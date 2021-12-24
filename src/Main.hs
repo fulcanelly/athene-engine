@@ -35,7 +35,7 @@ import Control.Lens
 import GHC.Stack
 import Control.TInter
 import Control.Exception
-
+import qualified Data.Favorites as Fav
 import qualified Data.Posts as Post
 import Control.Async
 
@@ -43,7 +43,8 @@ setupDatabase :: IO Connection
 setupDatabase = do
     conn <- open "db.sqlite"
     Post.setupDB conn
-    pure conn
+    Fav.setupDB conn
+    pure conn 
 
 
 main :: HasCallStack => IO ()
