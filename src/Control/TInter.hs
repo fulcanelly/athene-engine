@@ -41,9 +41,9 @@ catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
 
 
-data MixedCommand
+data Intervention
     = Update ! Update
-    | AdvOfferFrom ! AdvPost 
+    | AdvOffers Int 
     | Stop
 
 
@@ -55,7 +55,7 @@ data SQLnTasks
 
 data Context
     = Context {
-        mailbox :: TChan Update --todo: change to TChan UpdateOrCommand. reason: suspending old chats
+        mailbox :: TChan Intervention
         , tokenC :: String
         , sqlTasks :: SQLnTasks
         , throttleTasks :: TChan Task
@@ -74,27 +74,41 @@ answerWith Context {..} entry = do
     let mid = error "no way to get it yet"
     void $ sendGenericMessageWithArgs tokenC chat (method entry) (args entry)
 
-iterScenarioTg :: Context -> ScenarioF a -> IO a
-iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
-    case cmd of
-        SendWith entry -> answerWith ctx entry
-        CreatePost post -> tasks sqlTasks `runAsync` do 
-            createNewPost post (conn sqlTasks) 
-            `awaitIOAndThen` do
-                const $ pure ()
-        _ -> error "unimplemented behavior"
-    pure next
 
-iterScenarioTg ctx expect @ (Expect pred) = do
-    update <- atomically $ readTChan $ mailbox ctx
+
+handleUpdate :: Context -> Update -> ScenarioF a -> IO a
+handleUpdate ctx update self @ (Expect pred)= do
     case returnTrigger ctx of
         Just isTimeToReturn -> if isTimeToReturn update then throw ReturnE else handle update
         Nothing -> handle update
     where
     handle update = case pred update of
         Just next -> pure next
-        Nothing -> iterScenarioTg ctx expect
+        Nothing -> iterScenarioTg ctx self
 
+handleUpdate _ _ _ = error "should run only with ScenarioF being Expect"
+
+iterScenarioTg :: Context -> ScenarioF a -> IO a
+iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
+    case cmd of
+        SendWith entry -> answerWith ctx entry
+        CreatePost post -> tasks sqlTasks `runAsync` do 
+                createNewPost post (conn sqlTasks) 
+            `awaitIOAndThen` do
+                const $ pure ()
+        
+        LikePost _ -> undefined
+        DislikePost  _ -> undefined
+
+        _ -> error "unimplemented behavior"
+    pure next
+
+iterScenarioTg ctx expect @ (Expect pred) = do
+    intervention <- atomically $ readTChan $ mailbox ctx
+    case intervention of
+        Update up -> handleUpdate ctx up expect
+        AdvOffers n -> undefined
+        Stop -> undefined
 
 iterScenarioTg ctx (ReturnIf pred branch falling) = do
     foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling
@@ -149,7 +163,7 @@ dispatchUpdateS contextFactory source update = do
 
     case chat `M.lookup` cdata of
         Just ctx -> do
-            writeTChan (mailbox ctx) update
+            writeTChan (mailbox ctx) (Update update)
             pure Nothing
 
         Nothing -> do
