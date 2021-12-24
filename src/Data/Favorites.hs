@@ -15,7 +15,10 @@ instance FromRow Favorite where
     fromRow = Favorite <$> field <*> field <*> field 
 
 setupDB :: Connection -> IO ()
-setupDB conn = execute conn "CREATE TABLE IF NOT EXISTS channel_favorites(is_liked, subject, user_id)" ()
+setupDB conn = execute_ conn "CREATE TABLE IF NOT EXISTS channel_favorites(is_liked, subject, user_id, \
+                \ FOREIGN KEY (subject) REFERENCES channel_posts(user_id), \
+                \ FOREIGN KEY (user_id) REFERENCES channel_posts(user_id) \
+                \ )" 
 
 likePostBy :: ChatId -> ChatId -> Connection -> IO ()
 likePostBy subject userId conn = do
