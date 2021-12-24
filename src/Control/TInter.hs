@@ -3,6 +3,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Control.TInter where
 
@@ -16,8 +17,8 @@ import Control.FreeState
 import Data.Maybe ( fromJust, fromMaybe )
 import API.ReplyMarkup (textButton)
 import qualified Data.Map as M
-import Data.Logic ( lobby )
-import Control.Monad.Free ( foldFree )
+import Data.Logic ( lobby, onPostLike )
+import Control.Monad.Free ( foldFree, liftF )
 import Control.Exception ( SomeException, catch, throw )
 import GHC.Conc (readTVar, atomically, writeTVar)
 import Control.Monad (void)
@@ -107,7 +108,9 @@ iterScenarioTg ctx expect @ (Expect pred) = do
     intervention <- atomically $ readTChan $ mailbox ctx
     case intervention of
         Update up -> handleUpdate ctx up expect
-        AdvOffers n -> undefined
+        AdvOffers n -> do
+            let adjusted = onPostLike (liftF expect) n
+            foldFree (iterScenarioTg ctx) adjusted 
         Stop -> undefined
 
 iterScenarioTg ctx (ReturnIf pred branch falling) = do
