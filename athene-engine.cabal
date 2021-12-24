@@ -35,7 +35,8 @@ executable athene-engine
     Control.FreeState,
     API.ReplyMarkup,
     Data.Logic,
-    Control.TInter
+    Control.TInter,
+    Data.Favorites
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
