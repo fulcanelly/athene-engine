@@ -5,6 +5,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Control.Database where
 import Database.SQLite.Simple hiding (execute, execute_, query)
@@ -14,9 +15,20 @@ import Control.Monad
 import Control.Monad.Free
 import Data.Maybe
 import Data.Favorites (Favorite)
+import Control.Concurrent.STM
+import Control.Async
 
+data SQLnTasks
+    = SQLnTasks {
+        conn :: Connection,
+        tasks :: TChan Task
+    }
 
-type ChatId = Int
+runTransaction :: SQLnTasks -> SqlRequest a -> IO (Future a)
+runTransaction SQLnTasks{..} transaction = 
+    tasks `runAsync` do 
+        conn `runSql` transaction 
+        
 data SqlRequestF next
     = forall t f. (ToRow t, FromRow f) => QueryF Query t ([f] -> next)
     | forall t. (ToRow t) => Execute Query t next

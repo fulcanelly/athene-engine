@@ -47,11 +47,6 @@ data MixedCommand
     | Stop
 
 
-data SQLnTasks
-    = SQLnTasks {
-        conn :: Connection,
-        tasks :: TChan Task
-    }
 
 data Context
     = Context {
