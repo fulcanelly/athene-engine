@@ -74,8 +74,8 @@ sumP post pPost = post {
 
 emptyP = Post Nothing Nothing Nothing Nothing
 
-setupDB :: Connection -> SqlRequest ()
-setupDB conn =
+setupDB :: SqlRequest ()
+setupDB =
     execute query ()
     where query = "CREATE TABLE IF NOT EXISTS channel_posts(\
         \ title, user_id, file_id, link)"
