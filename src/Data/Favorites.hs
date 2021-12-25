@@ -7,9 +7,9 @@ import Control.Database
 
 data Favorite
     = Favorite {
-        userId :: ChatId
+        isLiked :: Bool
         , subject :: ChatId
-        , isLiked :: Bool
+        , userId :: ChatId
     } deriving Show 
 
 instance FromRow Favorite where
