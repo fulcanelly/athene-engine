@@ -29,6 +29,7 @@ executable athene-engine
     UI,
     Data.Posts,
     Data.Review,
+    Control.Database,
     Control.Async,
     Data.State,
     API.Telegram,
