@@ -33,6 +33,7 @@ executeAsPossible :: Executor
 executeAsPossible chan = do
     sem <- atomically $ newTSem 1
     forever $ exec sem chan 
+    `catch` (print :: BlockedIndefinitelyOnSTM -> IO ())
     `catch` \e -> do
         print (e :: SomeException)
         putStrLn "got problem in async, restarting"
