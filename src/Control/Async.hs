@@ -3,6 +3,7 @@ import Control.Concurrent
 import Control.Concurrent.STM (TChan, TVar, readTChan, atomically, newTChan, newTChanIO, writeTChan)
 import Control.Concurrent.STM.TSem
 import Control.Monad (forM_, forever)
+import Control.Exception
 
 {-
 throttling mechanism blueprint
@@ -32,6 +33,11 @@ executeAsPossible :: Executor
 executeAsPossible chan = do
     sem <- atomically $ newTSem 1
     forever $ exec sem chan 
+    `catch` \e -> do
+        print (e :: SomeException)
+        putStrLn "got problem in async, restarting"
+        executeAsPossible chan
+
     where 
     exec sem chan = do
         func <- atomically $ do
