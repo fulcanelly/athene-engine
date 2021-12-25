@@ -14,7 +14,6 @@ import qualified Database.SQLite.Simple as S (execute, query)
 import Control.Monad
 import Control.Monad.Free
 import Data.Maybe
-import Data.Favorites (Favorite)
 import Control.Concurrent.STM
 import Control.Async
 
