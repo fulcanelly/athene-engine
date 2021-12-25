@@ -30,7 +30,7 @@ import qualified Data.Vector as V
 import Data.Maybe ( fromJust )
 import Data.Functor ()
 import Control.Monad ()
-import API.Keyboard ( KeyboardButton, kbToJSON )
+import API.ReplyMarkup ( KeyboardButton, kbToJSON )
 import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just )
 

@@ -3,11 +3,12 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Data.Logic where
 import Control.FreeState as F
 
-import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId) )
+import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId, link) )
 import Control.Monad.Free (Free (Pure, Free), foldFree, liftF)
 import Data.List (find)
 import API.Telegram
@@ -16,7 +17,8 @@ import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
-import Control.Monad (when)
+import Control.Monad (when, void)
+
 
 data HandlerEntry a
     = HandlerEntry {
@@ -25,19 +27,6 @@ data HandlerEntry a
     }
 
 wrongOptionMessage = "Wrong option, try again"
-
-
-handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
-handleFewWithGreeting entries greeting retryMsg = do
-    eval $ SendWith $ sendTextNButtonsEntry greeting buttons 
-    text <- expect anyText
-    case ((text ==) . trigger) `find` entries of 
-        Nothing -> do
-            eval $ sendText retryMsg
-            handleFewWithGreeting entries greeting retryMsg
-        Just one -> handler one
-    where
-    buttons = map ((: []) . trigger) entries
 
 
 expectFew :: Foldable t => t String -> Scenario (Maybe String)
@@ -54,7 +43,7 @@ constrExpectPhoto :: Scenario String
 constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
 
 expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
-expectOrReply pred failMsg = do 
+expectOrReply pred failMsg = do
     update <- expect Just
     case pred update of
         Nothing -> do
@@ -63,15 +52,15 @@ expectOrReply pred failMsg = do
         Just res -> pure res
 
 anyPhoto :: Update -> Maybe String
-anyPhoto update 
+anyPhoto update
     = update ^? #message
-    . _Just . #photo 
+    . _Just . #photo
     . _Just . ix 0 . #file_id
 
 withChatId :: Update -> Maybe ChatId
 withChatId update = update ^? #message . _Just . #from . #id
 
-anyTextWithChatId :: Update -> Maybe (String, ChatId) 
+anyTextWithChatId :: Update -> Maybe (String, ChatId)
 anyTextWithChatId update =
     (,) <$> anyText update <*> withChatId update
 
@@ -102,15 +91,16 @@ post = do
 
         evalReply "please send heading photo"
         fileId <- constrExpectPhoto
-        
+
         evalReply "now send join link to you channel "
         link <- constrExpectText
-        
+
         eval $ CreatePost $ Post title chatId fileId link
         evalReply "Ok! your post have created"
 
-showPost :: AdvPost -> Scenario ()
-showPost Post{..} = eval $ SendWith $ F.sendPhoto fileId title [["Like", "Dislike"], ["Back"]]
+showPost :: AdvPost -> String -> Scenario ()
+showPost Post{..} msg = eval $ SendWith $ F.sendPhoto fileId caption [["Like", "Dislike"], ["Back"]]
+    where caption = title <> "\n\n" <> link <> msg
 
 findS :: Scenario ()
 findS = do
@@ -124,16 +114,13 @@ findS = do
             
 
     onPresent post = do
-        showPost post
-        offerFew "What you think about this channel ?" do
-            onText "Like" do
+        showPost post "\n\n\nWhat you think about this channel ?"
+        handleFew do 
+            onText "Like" do   
                 eval $ LikePost post
-                findS
             onText "Dislike" do
                 eval $ DislikePost post
-                findS
             onText "Back" $ pure ()
-            
 
 
 review = do
@@ -146,22 +133,20 @@ isTextMatchU text update = case textU update of
 
 branch `returnOn` word =
     returnIf (isTextMatchU word) branch do
-        evalReply $ "returing from: " ++ word
         pure ()
 
 
 data HandlerEntryF a
     = HandlerEntryF {
     triggerF :: String
-    , handlerF :: Scenario () 
-    , next :: a
+    , handlerF :: Scenario a
     } 
     deriving Functor
 
 type FreeHandler a = Free HandlerEntryF a
 
 
-onText trigger branch = liftF $ HandlerEntryF trigger branch ()
+onText trigger branch = liftF $ HandlerEntryF trigger branch 
 
 
 offerFew :: String -> FreeHandler a -> Scenario a
@@ -169,11 +154,27 @@ offerFew = do
     --let buttons =
     undefined
 
+handleFew :: FreeHandler a -> Scenario a
+handleFew = undefined
+
+lobby :: Scenario ()
 lobby = do 
     offerFew "Lobby" do
         onText "post" do
-            post `returnOn` "back"
-        onText "find" findS
-        onText "review" $ pure ()
+            post `returnOn` "Back"
+        onText "find" do
+            findS `returnOn` "Back"
+        onText "review" review
     lobby
 
+
+
+onPostLike :: Scenario a -> Int -> Scenario a
+onPostLike continue count = do
+    offerFew ("You got " <> show count <> " adv offers") do
+        onText "Show" do
+            review
+            continue
+        onText "Latter" do continue
+        
+    

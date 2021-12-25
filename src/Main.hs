@@ -13,21 +13,13 @@ import Control.Applicative
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromRow
 
-import Control.Concurrent
-import Network.HTTP ( getRequest, getResponseBody, simpleHTTP )
---import qualified Network.HTTP.Simple as H
---import qualified Network.HTTP.Simple as H
-import Control.Monad (forever, join)
-import qualified Data.String
-import qualified Network.HTTP.Conduit as HC
-import qualified Data.ByteString.Lazy as L
 import GHC.Generics
 import API.Telegram
 import Data.Maybe
 import Control.FreeState
 import qualified API.Telegram as T
 
-import API.Keyboard
+import API.ReplyMarkup
 import Control.FreeState
 import Data.Logic
 import Data.Generics.Labels
@@ -35,15 +27,17 @@ import Control.Lens
 import GHC.Stack
 import Control.TInter
 import Control.Exception
-
+import qualified Data.Favorites as Fav
 import qualified Data.Posts as Post
 import Control.Async
+import Control.Database
 
 setupDatabase :: IO Connection
 setupDatabase = do
     conn <- open "db.sqlite"
-    Post.setupDB conn
-    pure conn
+    conn `runSql` Post.setupDB 
+    conn `runSql` Fav.setupDB 
+    pure conn 
 
 
 main :: HasCallStack => IO ()

@@ -29,13 +29,15 @@ executable athene-engine
     UI,
     Data.Posts,
     Data.Review,
+    Control.Database,
     Control.Async,
     Data.State,
     API.Telegram,
     Control.FreeState,
-    API.Keyboard,
+    API.ReplyMarkup,
     Data.Logic,
-    Control.TInter
+    Control.TInter,
+    Data.Favorites
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
@@ -52,11 +54,7 @@ executable athene-engine
     base == 4.14.3.0,
     generic-lens,
     either,
-    tagsoup,
-    profunctors,
     http-conduit,
-    status-notifier-item,
-    HTTP,
     stm,
     aeson,
     uri-encode,
@@ -65,7 +63,6 @@ executable athene-engine
     free,
     lens,
     bytestring,
-    http-client,
     sqlite-simple >= 0.4.18.0
   -- hs-source-dirs:
   default-language:    Haskell2010
