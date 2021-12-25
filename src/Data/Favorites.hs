@@ -9,7 +9,7 @@ data Favorite
         userId :: ChatId
         , subject :: ChatId
         , isLiked :: Bool
-    }
+    } deriving Show 
 
 instance FromRow Favorite where
     fromRow = Favorite <$> field <*> field <*> field 
@@ -44,4 +44,5 @@ createLikeEntry subject userId state conn = (conn `execute` "INSERT INTO channel
 
 getRateBy :: ChatId -> ChatId -> Connection -> IO (Maybe Favorite)
 getRateBy subject userId conn = 
-    listToMaybe <$> query conn "SELECT * FROM channel_favorites WHERE user_id = ?" (Only (userId :: Int))
+    listToMaybe <$> query conn "SELECT * FROM channel_favorites WHERE subject = ? AND user_id = ?" (subject, userId)
+
