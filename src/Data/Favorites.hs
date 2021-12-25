@@ -10,7 +10,7 @@ data Favorite
         userId :: ChatId
         , subject :: ChatId
         , isLiked :: Bool
-    }
+    } deriving Show 
 
 instance FromRow Favorite where
     fromRow = Favorite <$> field <*> field <*> field
@@ -45,4 +45,4 @@ createLikeEntry subject userId state = execute "INSERT INTO channel_favorites VA
 
 getRateBy :: ChatId -> ChatId -> SqlRequest (Maybe Favorite)
 getRateBy subject userId =
-    listToMaybe <$> query "SELECT * FROM channel_favorites WHERE user_id = ?" (Only (userId :: Int))
+    listToMaybe <$> query "SELECT * FROM channel_favorites WHERE subject = ? AND user_id = ?" (subject, userId)

@@ -3,6 +3,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Control.TInter where
 
@@ -12,12 +13,12 @@ import API.Telegram
     ( answer, answerWithButtons, chatU, ChatId, Token, Update, sendGenericMessageWithArgs )
 import Control.Async ( Task, wrapIOToFuture, runAsync, awaitAndThen, awaitIOAndThen )
 import Control.FreeState
-  
+
 import Data.Maybe ( fromJust, fromMaybe )
 import API.ReplyMarkup (textButton)
 import qualified Data.Map as M
-import Data.Logic ( lobby )
-import Control.Monad.Free ( foldFree )
+import Data.Logic ( lobby, onPostLike )
+import Control.Monad.Free ( foldFree, liftF )
 import Control.Exception ( SomeException, catch, throw )
 import GHC.Conc (readTVar, atomically, writeTVar)
 import Control.Monad (void)
@@ -37,21 +38,22 @@ import Database.SQLite.Simple
 import Data.Posts
 import Control.Database
 
+import Data.Favorites
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
 
 
-data MixedCommand
+data Intervention
     = Update ! Update
-    | AdvOfferFrom ! AdvPost 
+    | AdvOffers Int
     | Stop
 
 
 
 data Context
     = Context {
-        mailbox :: TChan Update --todo: change to TChan UpdateOrCommand. reason: suspending old chats
+        mailbox :: TChan Intervention
         , tokenC :: String
         , sqlTasks :: SQLnTasks
         , throttleTasks :: TChan Task
@@ -70,35 +72,57 @@ answerWith Context {..} entry = do
     let mid = error "no way to get it yet"
     void $ sendGenericMessageWithArgs tokenC chat (method entry) (args entry)
 
-iterScenarioTg :: Context -> ScenarioF a -> IO a
-iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
-    case cmd of
-        SendWith entry -> answerWith ctx entry
-        CreatePost post -> 
-            sqlTasks `runTransaction` 
-                createNewPost post  
-            `awaitIOAndThen` do
-                const $ pure ()
-        _ -> error "unimplemented behavior"
-    pure next
 
-iterScenarioTg ctx expect @ (Expect pred) = do
-    update <- atomically $ readTChan $ mailbox ctx
+
+handleUpdate :: Context -> Update -> ScenarioF a -> IO a
+handleUpdate ctx update self @ (Expect pred)= do
     case returnTrigger ctx of
         Just isTimeToReturn -> if isTimeToReturn update then throw ReturnE else handle update
         Nothing -> handle update
     where
     handle update = case pred update of
         Just next -> pure next
-        Nothing -> iterScenarioTg ctx expect
+        Nothing -> iterScenarioTg ctx self
 
+handleUpdate _ _ _ = error "should run only with ScenarioF being Expect"
+
+iterScenarioTg :: Context -> ScenarioF a -> IO a
+iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
+    case cmd of
+        SendWith entry -> answerWith ctx entry
+        CreatePost post -> sqlTasks `runTransaction` 
+                createNewPost post
+            `awaitIOAndThen` do
+                const $ pure ()
+
+        LikePost Post{..} -> do
+            void $ sqlTasks `runTransaction` do
+                userId `likePostBy` chat
+
+            undefined
+        DislikePost Post{..} -> do
+            void $ sqlTasks `runTransaction` do
+                userId `dislikePostBy` chat
+
+
+        _ -> error "unimplemented behavior"
+    pure next
+
+iterScenarioTg ctx expect @ (Expect pred) = do
+    intervention <- atomically $ readTChan $ mailbox ctx
+    case intervention of
+        Update up -> handleUpdate ctx up expect
+        AdvOffers n -> do
+            let adjusted = onPostLike (liftF expect) n
+            foldFree (iterScenarioTg ctx) adjusted
+        Stop -> undefined
 
 iterScenarioTg ctx (ReturnIf pred branch falling) = do
     foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling
     where handleFalling = iterScenarioTg ctx `foldFree` falling
 
 iterScenarioTg Context{..} (FindRandPost func) = do
-    sqlTasks `runTransaction` findRandomPostExcluding chat 
+    sqlTasks `runTransaction` findRandomPostExcluding chat
     `awaitIOAndThen` (pure . func)
 
 
@@ -145,7 +169,7 @@ dispatchUpdateS contextFactory source update = do
 
     case chat `M.lookup` cdata of
         Just ctx -> do
-            writeTChan (mailbox ctx) update
+            writeTChan (mailbox ctx) (Update update)
             pure Nothing
 
         Nothing -> do

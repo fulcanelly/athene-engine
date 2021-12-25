@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Data.Logic where
 import Control.FreeState as F
@@ -16,6 +17,7 @@ import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
+import Control.Monad (void)
 
 data HandlerEntry a
     = HandlerEntry {
@@ -29,19 +31,19 @@ wrongOptionMessage = "Wrong option, try again"
 handleFew :: [HandlerEntry b] -> Scenario b
 handleFew entries  = do
     text <- expect anyText
-    case ((text ==) . trigger) `find` entries of 
+    case ((text ==) . trigger) `find` entries of
         Nothing -> do
             eval $ sendText wrongOptionMessage
-            handleFew entries 
+            handleFew entries
         Just one -> handler one
     where
 
 
 handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
 handleFewWithGreeting entries greeting retryMsg = do
-    eval $ SendWith $ sendTextNButtonsEntry greeting buttons 
+    eval $ SendWith $ sendTextNButtonsEntry greeting buttons
     text <- expect anyText
-    case ((text ==) . trigger) `find` entries of 
+    case ((text ==) . trigger) `find` entries of
         Nothing -> do
             eval $ sendText retryMsg
             handleFewWithGreeting entries greeting retryMsg
@@ -66,7 +68,7 @@ constrExpectPhoto :: Scenario String
 constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
 
 expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
-expectOrReply pred failMsg = do 
+expectOrReply pred failMsg = do
     update <- expect Just
     case pred update of
         Nothing -> do
@@ -75,15 +77,15 @@ expectOrReply pred failMsg = do
         Just res -> pure res
 
 anyPhoto :: Update -> Maybe String
-anyPhoto update 
+anyPhoto update
     = update ^? #message
-    . _Just . #photo 
+    . _Just . #photo
     . _Just . ix 0 . #file_id
 
 withChatId :: Update -> Maybe ChatId
 withChatId update = update ^? #message . _Just . #from . #id
 
-anyTextWithChatId :: Update -> Maybe (String, ChatId) 
+anyTextWithChatId :: Update -> Maybe (String, ChatId)
 anyTextWithChatId update =
     (,) <$> anyText update <*> withChatId update
 
@@ -99,7 +101,7 @@ post = do
     offerFew "It's your post settings" [
         HandlerEntry "Create" create,
         HandlerEntry "Back" $ pure ()
-        ] 
+        ]
     where
     create = do
         evalReply "please enter title"
@@ -107,10 +109,10 @@ post = do
 
         evalReply "please send heading photo"
         fileId <- constrExpectPhoto
-        
+
         evalReply "now send join link to you channel "
         link <- constrExpectText
-        
+
         eval $ CreatePost $ Post title chatId fileId link
         evalReply "Ok! your post have created"
 
@@ -130,7 +132,7 @@ findS = do
             ]
 
     onPresent post = do
-        showPost post "\n\n\nWhat you think about this channel ?" 
+        showPost post "\n\n\nWhat you think about this channel ?"
         handleFew [
             HandlerEntry "Like" do
                 eval $ LikePost post
@@ -162,3 +164,13 @@ lobby = do
         HandlerEntry "review" review
         ]
     lobby
+
+onPostLike :: Scenario a -> Int -> Scenario a
+onPostLike continue count = do
+    offerFew ("You got " <> show count <> " adv offers") [
+            HandlerEntry "Show" do
+                review
+                continue
+            , HandlerEntry "Latter"  continue
+        ]
+    
