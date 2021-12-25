@@ -35,6 +35,7 @@ import Control.Concurrent.STM
       TChan )
 import Database.SQLite.Simple
 import Data.Posts
+import Control.Database
 
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
@@ -73,8 +74,9 @@ iterScenarioTg :: Context -> ScenarioF a -> IO a
 iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
     case cmd of
         SendWith entry -> answerWith ctx entry
-        CreatePost post -> tasks sqlTasks `runAsync` do 
-            createNewPost post (conn sqlTasks) 
+        CreatePost post -> 
+            sqlTasks `runTransaction` 
+                createNewPost post  
             `awaitIOAndThen` do
                 const $ pure ()
         _ -> error "unimplemented behavior"
@@ -96,8 +98,7 @@ iterScenarioTg ctx (ReturnIf pred branch falling) = do
     where handleFalling = iterScenarioTg ctx `foldFree` falling
 
 iterScenarioTg Context{..} (FindRandPost func) = do
-    tasks sqlTasks `runAsync` do 
-        findRandomPostExcluding chat (conn sqlTasks) 
+    sqlTasks `runTransaction` findRandomPostExcluding chat 
     `awaitIOAndThen` (pure . func)
 
 
