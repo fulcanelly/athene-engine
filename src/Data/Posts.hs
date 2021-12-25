@@ -15,7 +15,7 @@
 
 module Data.Posts where
 
-import Database.SQLite.Simple ( execute, query, field, Only(Only), FromRow(..), Connection )
+import Database.SQLite.Simple hiding (execute, query)
 import Control.Applicative ()
 import Database.SQLite.Simple.FromRow ( RowParser )
 import Data.Functor.Identity ( Identity )
@@ -25,6 +25,7 @@ import Data.Aeson ( FromJSON, ToJSON )
 import GHC.Generics (Generic)
 import Control.Applicative
 import API.Telegram (ChatId)
+import Control.Database hiding (ChatId)
 
 type family AnyOrId s a where
     AnyOrId Identity a = a
@@ -73,34 +74,37 @@ sumP post pPost = post {
 
 emptyP = Post Nothing Nothing Nothing Nothing
 
-setupDB :: Connection -> IO ()
+setupDB :: Connection -> SqlRequest ()
 setupDB conn =
-    execute conn query ()
+    execute query ()
     where query = "CREATE TABLE IF NOT EXISTS channel_posts(\
         \ title, user_id, file_id, link)"
 
-updatePost :: Int -> PartialPost -> Connection -> IO ()
-updatePost origin update conn = do
-    (Just post) <- getSpecificAt origin conn
-    let updater = execute conn "UPDATE channel_posts SET title = ?, user_id = ?, file_id = ?, link = ? WHERE user_id = ?" in
-        updater $ updateEntry (summed post) origin
+updatePost :: Int -> PartialPost -> SqlRequest Bool
+updatePost origin update = do
+    jpost <- getSpecificAt origin  
+    case jpost of 
+        Nothing -> pure False 
+        Just post -> do
+            execute "UPDATE channel_posts SET title = ?, user_id = ?, file_id = ?, link = ? WHERE user_id = ?" (updateEntry (summed post) origin)
+            pure True
     where
-        updateEntry Post{..} origin = (title, userId, fileId, link, origin)
-        summed post = sumP post update
+    updateEntry Post{..} origin = (title, userId, fileId, link, origin)
+    summed post = sumP post update
 
-createNewPost :: AdvPost -> Connection -> IO ()
-createNewPost Post{..} conn =
-    execute conn "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
+createNewPost :: AdvPost -> SqlRequest ()
+createNewPost Post{..}  =
+    execute "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
         postEntry = (title, userId, fileId, link)
 
-getSpecificAt :: Int -> Connection -> IO (Maybe AdvPost)
-getSpecificAt userId conn =
-    listToMaybe <$> query conn "SELECT * from channel_posts WHERE user_id = ?" (Only (userId :: Int))
+getSpecificAt :: Int -> SqlRequest (Maybe AdvPost)
+getSpecificAt userId =
+    listToMaybe <$> query "SELECT * from channel_posts WHERE user_id = ?" (Only (userId :: Int))
 
-getFewExcept :: Int -> String -> Connection -> IO [AdvPost]
-getFewExcept count userId conn =
-    query conn "SELECT * from channel_posts WHERE user_id != ? LIMIT ?" (userId, count)
+getFewExcept :: Int -> String -> SqlRequest [AdvPost]
+getFewExcept count userId =
+    query "SELECT * from channel_posts WHERE user_id != ? LIMIT ?" (userId, count)
 
-findRandomPostExcluding :: ChatId -> Connection -> IO (Maybe AdvPost)
-findRandomPostExcluding userId conn =
-    listToMaybe <$> query conn "SELECT * FROM channel_posts WHERE user_id != ? ORDER BY RANDOM() LIMIT 1" (Only (userId :: Int))
+findRandomPostExcluding :: ChatId  -> SqlRequest (Maybe AdvPost)
+findRandomPostExcluding userId  =
+    listToMaybe <$> query  "SELECT * FROM channel_posts WHERE user_id != ? ORDER BY RANDOM() LIMIT 1" (Only (userId :: Int))
