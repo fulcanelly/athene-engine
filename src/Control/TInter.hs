@@ -36,7 +36,7 @@ import Control.Concurrent.STM
       TChan )
 import Database.SQLite.Simple
 import Data.Posts
-
+import Data.Favorites
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
@@ -98,8 +98,15 @@ iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
             `awaitIOAndThen` do
                 const $ pure ()
         
-        LikePost _ -> undefined
-        DislikePost  _ -> undefined
+        LikePost Post{..} -> do
+            void $ tasks sqlTasks `runAsync` do
+                (userId `likePostBy` chat) (conn sqlTasks)      
+                
+            undefined
+        DislikePost Post{..} -> do
+            void $ tasks sqlTasks `runAsync` do
+                (userId `dislikePostBy` chat) (conn sqlTasks)  
+            
 
         _ -> error "unimplemented behavior"
     pure next
