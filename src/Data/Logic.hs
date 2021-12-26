@@ -77,13 +77,13 @@ post :: Scenario ()
 post = do
     exists <- checkIsHavePost
     offerFew "It's your post settings" do
-        onText "create" create
-        onText "back" $ pure ()
-        when exists do
+        if exists then do 
             onText "edit" $ pure ()
             onText "show" $ pure ()
             onText "delete" $ pure ()
-
+        else
+            onText "create" create
+        onText "back" $ pure ()
     where
     create = do
         evalReply "please enter title"
