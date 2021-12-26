@@ -71,7 +71,8 @@ anyText update = update ^? #message . _Just . #text . _Just
 evalReply :: String -> Scenario ()
 evalReply = eval . sendText
 
-checkIsHavePost = undefined 
+checkIsHavePost :: Free ScenarioF Bool
+checkIsHavePost = isJust <$> loadMyPost
 
 post :: Scenario ()
 post = do

@@ -125,6 +125,9 @@ iterScenarioTg Context{..} (FindRandPost func) = do
     sqlTasks `runTransaction` findRandomPostExcluding chat
     `awaitIOAndThen` (pure . func)
 
+iterScenarioTg Context{..} (LoadMyPost func) = do 
+    sqlTasks `runTransaction` getSpecificAt chat
+    `awaitIOAndThen` (pure . func)
 
 iterScenarioTg _ _ = error "unimplemented"
 
