@@ -4,6 +4,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Data.Logic where
 import Control.FreeState as F
@@ -17,42 +19,14 @@ import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
-import Control.Monad (void)
+import Control.Monad (when, void)
+import Data.Map as M
+import GHC.Exts (IsList)
+import qualified Data.Map as M
 
-data HandlerEntry a
-    = HandlerEntry {
-    trigger :: String
-    , handler :: Scenario a
-    }
 
 wrongOptionMessage = "Wrong option, try again"
 
-
-handleFew :: [HandlerEntry b] -> Scenario b
-handleFew entries  = do
-    text <- expect anyText
-    case ((text ==) . trigger) `find` entries of
-        Nothing -> do
-            eval $ sendText wrongOptionMessage
-            handleFew entries
-        Just one -> handler one
-    where
-
-
-handleFewWithGreeting :: [HandlerEntry b] -> String -> String -> Scenario b
-handleFewWithGreeting entries greeting retryMsg = do
-    eval $ SendWith $ sendTextNButtonsEntry greeting buttons
-    text <- expect anyText
-    case ((text ==) . trigger) `find` entries of
-        Nothing -> do
-            eval $ sendText retryMsg
-            handleFewWithGreeting entries greeting retryMsg
-        Just one -> handler one
-    where
-    buttons = map ((: []) . trigger) entries
-
-offerFew :: String -> [HandlerEntry b] -> Scenario b
-offerFew greeting entries = handleFewWithGreeting entries greeting wrongOptionMessage
 
 expectFew :: Foldable t => t String -> Scenario (Maybe String)
 expectFew list = do
@@ -96,12 +70,19 @@ anyText update = update ^? #message . _Just . #text . _Just
 evalReply :: String -> Scenario ()
 evalReply = eval . sendText
 
+checkIsHavePost = undefined 
+
 post :: Scenario ()
 post = do
-    offerFew "It's your post settings" [
-        HandlerEntry "Create" create,
-        HandlerEntry "Back" $ pure ()
-        ]
+    exists <- checkIsHavePost
+    offerFew "It's your post settings" do
+        if exists then do 
+            onText "edit" $ pure ()
+            onText "show" $ pure ()
+            onText "delete" $ pure ()
+        else
+            onText "create" create
+        onText "back" $ pure ()
     where
     create = do
         evalReply "please enter title"
@@ -126,22 +107,19 @@ findS = do
     maybe onAbsent onPresent post
     where
     onAbsent = do
-        offerFew "There are no more post /any post yet :/" [
-            HandlerEntry "Back" $ pure (),
-            HandlerEntry "Try again" findS
-            ]
+        offerFew "There are no more post /any post yet :/" do 
+            onText "Back" $ pure ()
+            onText "Try again" findS
+            
 
     onPresent post = do
         showPost post "\n\n\nWhat you think about this channel ?"
-        handleFew [
-            HandlerEntry "Like" do
+        handleFew do 
+            onText "Like" do   
                 eval $ LikePost post
-                findS,
-            HandlerEntry "Dislike" do
+            onText "Dislike" do
                 eval $ DislikePost post
-                findS,
-            HandlerEntry "Back" $ pure ()
-            ]
+            onText "Back" $ pure ()
 
 
 review = do
@@ -156,21 +134,57 @@ branch `returnOn` word =
     returnIf (isTextMatchU word) branch do
         pure ()
 
+
+type VoidHashBuilder a = HashBuilder a ()
+
+onText :: String -> Scenario b -> VoidHashBuilder (Scenario b)
+onText = putVal 
+
+data HashBuilderF a next = PutValue String a next  
+    deriving Functor 
+
+type HashBuilder a = Free (HashBuilderF a)
+
+putVal ::String -> a -> HashBuilder a ()
+putVal k v = liftF $ PutValue k v ()
+
+buildTable :: HashBuilder a b -> Map String a
+buildTable (Pure next) = [] 
+buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
+
+offerFew :: String -> VoidHashBuilder (Scenario ()) -> Scenario ()
+offerFew greeting entry = do
+    let table = buildTable entry
+    eval $ SendWith $ sendTextNButtonsEntry greeting [M.keys table]
+    text <- expect anyText
+    runFoundOrWarn text table
+
+handleFew :: VoidHashBuilder (Scenario ()) -> Scenario ()
+handleFew entry = do
+    text <- expect anyText
+    runFoundOrWarn text $ buildTable entry
+
+runFoundOrWarn text table =
+    case text `M.lookup` table of 
+        Nothing -> do
+            evalReply "unknown option"
+        Just scen -> scen
+
 lobby :: Scenario ()
-lobby = do
-    offerFew "Lobby" [
-        HandlerEntry "post" (post `returnOn` "Back"),
-        HandlerEntry "find"  (findS `returnOn` "Back"),
-        HandlerEntry "review" review
-        ]
+lobby = do 
+    offerFew "Lobby" do
+        onText "post" do
+            post `returnOn` "Back"
+        onText "find" do
+            findS `returnOn` "Back"
+        onText "review" review
     lobby
+
 
 onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
-    offerFew ("You got " <> show count <> " adv offers") [
-            HandlerEntry "Show" do
-                review
-                continue
-            , HandlerEntry "Latter"  continue
-        ]
-    
+    offerFew ("You got " <> show count <> " adv offers") do
+        onText "Show" do
+            review
+        onText "Latter" do pure ()    
+    continue

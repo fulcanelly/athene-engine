@@ -13,7 +13,7 @@ import API.Telegram
     ( answer, answerWithButtons, chatU, ChatId, Token, Update, sendGenericMessageWithArgs )
 import Control.Async ( Task, wrapIOToFuture, runAsync, awaitAndThen, awaitIOAndThen )
 import Control.FreeState
-  
+
 import Data.Maybe ( fromJust, fromMaybe )
 import API.ReplyMarkup (textButton)
 import qualified Data.Map as M
@@ -36,6 +36,8 @@ import Control.Concurrent.STM
       TChan )
 import Database.SQLite.Simple
 import Data.Posts
+import Control.Database
+
 import Data.Favorites
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
@@ -44,15 +46,10 @@ catchAny = catch
 
 data Intervention
     = Update ! Update
-    | AdvOffers Int 
+    | AdvOffers Int
     | Stop
 
 
-data SQLnTasks
-    = SQLnTasks {
-        conn :: Connection,
-        tasks :: TChan Task
-    }
 
 data Context
     = Context {
@@ -93,20 +90,20 @@ iterScenarioTg :: Context -> ScenarioF a -> IO a
 iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
     case cmd of
         SendWith entry -> answerWith ctx entry
-        CreatePost post -> tasks sqlTasks `runAsync` do 
-                createNewPost post (conn sqlTasks) 
+        CreatePost post -> sqlTasks `runTransaction` 
+                createNewPost post
             `awaitIOAndThen` do
                 const $ pure ()
-        
+
         LikePost Post{..} -> do
-            void $ tasks sqlTasks `runAsync` do
-                (userId `likePostBy` chat) (conn sqlTasks)      
-                
+            void $ sqlTasks `runTransaction` do
+                userId `likePostBy` chat
+
             undefined
         DislikePost Post{..} -> do
-            void $ tasks sqlTasks `runAsync` do
-                (userId `dislikePostBy` chat) (conn sqlTasks)  
-            
+            void $ sqlTasks `runTransaction` do
+                userId `dislikePostBy` chat
+
 
         _ -> error "unimplemented behavior"
     pure next
@@ -117,7 +114,7 @@ iterScenarioTg ctx expect @ (Expect pred) = do
         Update up -> handleUpdate ctx up expect
         AdvOffers n -> do
             let adjusted = onPostLike (liftF expect) n
-            foldFree (iterScenarioTg ctx) adjusted 
+            foldFree (iterScenarioTg ctx) adjusted
         Stop -> undefined
 
 iterScenarioTg ctx (ReturnIf pred branch falling) = do
@@ -125,8 +122,7 @@ iterScenarioTg ctx (ReturnIf pred branch falling) = do
     where handleFalling = iterScenarioTg ctx `foldFree` falling
 
 iterScenarioTg Context{..} (FindRandPost func) = do
-    tasks sqlTasks `runAsync` do 
-        findRandomPostExcluding chat (conn sqlTasks) 
+    sqlTasks `runTransaction` findRandomPostExcluding chat
     `awaitIOAndThen` (pure . func)
 
 
