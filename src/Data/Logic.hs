@@ -136,26 +136,40 @@ branch `returnOn` word =
         pure ()
 
 
-data HandlerEntryF a
-    = HandlerEntryF {
-    triggerF :: String
-    , handlerF :: Scenario a
-    } 
-    deriving Functor
+type VoidHashBuilder a = HashBuilder a ()
 
-type FreeHandler a = Free HandlerEntryF a
+onText :: String -> Scenario b -> VoidHashBuilder (Scenario b)
+onText = putVal 
 
+data HashBuilderF a next = PutValue String a next  
+    deriving Functor 
 
-onText trigger branch = liftF $ HandlerEntryF trigger branch 
+type HashBuilder a = Free (HashBuilderF a)
 
+putVal ::String -> a -> HashBuilder a ()
+putVal k v = liftF $ PutValue k v ()
 
-offerFew :: String -> FreeHandler a -> Scenario a
-offerFew = do
-    --let buttons =
-    undefined
+buildTable :: HashBuilder a b -> Map String a
+buildTable (Pure next) = [] 
+buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
 
-handleFew :: FreeHandler a -> Scenario a
-handleFew = undefined
+offerFew :: String -> VoidHashBuilder (Scenario ()) -> Scenario ()
+offerFew greeting entry = do
+    let table = buildTable entry
+    eval $ SendWith $ sendTextNButtonsEntry greeting [M.keys table]
+    text <- expect anyText
+    runFoundOrWarn text table
+
+handleFew :: VoidHashBuilder (Scenario ()) -> Scenario ()
+handleFew entry = do
+    text <- expect anyText
+    runFoundOrWarn text $ buildTable entry
+
+runFoundOrWarn text table =
+    case text `M.lookup` table of 
+        Nothing -> do
+            evalReply "unknown option"
+        Just scen -> scen
 
 lobby :: Scenario ()
 lobby = do 
