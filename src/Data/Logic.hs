@@ -23,6 +23,7 @@ import Control.Monad (when, void, forever)
 import Data.Map as M
 import GHC.Exts (IsList)
 import qualified Data.Map as M
+import Data.List.Split (chunksOf)
 
 
 wrongOptionMessage = "Wrong option, try again"
@@ -167,7 +168,7 @@ buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
 offerFew :: String -> VoidHashBuilder (Scenario ()) -> Scenario ()
 offerFew greeting entry = do
     let table = buildTable entry
-    eval $ SendWith $ sendTextNButtonsEntry greeting [M.keys table]
+    eval $ SendWith $ sendTextNButtonsEntry greeting $ chunksOf 3 $ reverse (M.keys table)
     text <- expect anyText
     runFoundOrWarn text table
 
