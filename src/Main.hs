@@ -47,6 +47,11 @@ setupDatabase = do
     pure conn 
 
 
+data SharedState = SharedState {
+        tasks :: SQLnTasks,
+        token :: String
+    }
+    
 main :: HasCallStack => IO ()
 main = do
     conn <- setupDatabase
