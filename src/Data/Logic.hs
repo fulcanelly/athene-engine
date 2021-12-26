@@ -4,6 +4,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Data.Logic where
 import Control.FreeState as F
@@ -18,13 +20,10 @@ import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
 import Control.Monad (when, void)
+import Data.Map as M
+import GHC.Exts (IsList)
+import qualified Data.Map as M
 
-
-data HandlerEntry a
-    = HandlerEntry {
-    trigger :: String
-    , handler :: Scenario a
-    }
 
 wrongOptionMessage = "Wrong option, try again"
 
