@@ -14,12 +14,12 @@ import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId, link) )
 import Control.Monad.Free (Free (Pure, Free), foldFree, liftF)
 import Data.List (find)
 import API.Telegram
-import Data.Maybe (isJust)
+import Data.Maybe
 import Data.Generics.Labels ()
 import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
-import Control.Monad (when, void)
+import Control.Monad (when, void, forever)
 import Data.Map as M
 import GHC.Exts (IsList)
 import qualified Data.Map as M
@@ -76,9 +76,11 @@ post :: Scenario ()
 post = do
     exists <- checkIsHavePost
     offerFew "It's your post settings" do
-        if exists then do 
+        if exists then do
             onText "edit" $ pure ()
-            onText "show" $ pure ()
+            onText "show" do 
+                show
+                post
             onText "delete" $ pure ()
         else
             onText "create" create
@@ -96,6 +98,16 @@ post = do
 
         eval $ CreatePost $ Post title chatId fileId link
         evalReply "Ok! your post have created"
+
+    show = do
+        Post{..} <- fromJust <$> loadMyPost
+        eval $ SendWith $ F.sendPhoto fileId (title <> "\n\nWhat to do ?") [["Edit"],["Back"]]
+        handleFew do
+            onText "Edit" do
+                pure ()
+            onText "Back" do
+                pure ()
+
 
 showPost :: AdvPost -> String -> Scenario ()
 showPost Post{..} msg = eval $ SendWith $ F.sendPhoto fileId caption [["Like", "Dislike"], ["Back"]]
