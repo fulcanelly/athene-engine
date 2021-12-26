@@ -36,7 +36,7 @@ import Control.Concurrent.STM
       TChan )
 import Database.SQLite.Simple
 import Data.Posts
-import Control.Database
+import Control.Database hiding (tasks)
 
 import Data.Favorites
 
@@ -136,10 +136,10 @@ returnContext ctx pred = ctx { returnTrigger = Just pred }
 startIter :: Context -> IO ()
 startIter ctx = foldFree (iterScenarioTg ctx) lobby
 
-newContext :: Token -> SQLnTasks -> Update -> STM Context
-newContext token tasks update = Context
-    <$> newTChan <*> pure token
-    <*> pure tasks <*> newTChan
+newContext :: SharedState -> Update -> STM Context
+newContext shared update = Context
+    <$> newTChan <*> pure (token_ shared)
+    <*> pure (tasks shared) <*> newTChan
     <*> pure (fromJust $ chatU update)
     <*> pure Nothing
 
@@ -177,9 +177,15 @@ dispatchUpdateS contextFactory source update = do
             writeTVar source $ (chat `M.insert` ctx) cdata
             pure $ Just (removeChatSync source chat, ctx)
 
-safeHandleUpdateS :: Token -> SQLnTasks -> TVar ChatData -> Update -> IO ()
-safeHandleUpdateS token sqlTasks chats update = do
-    let contextFactory = newContext token sqlTasks
+
+data SharedState = SharedState {
+        tasks :: SQLnTasks,
+        token_ :: String
+    }
+
+safeHandleUpdateS :: SharedState -> TVar ChatData -> Update -> IO ()
+safeHandleUpdateS state chats update = do
+    let contextFactory = newContext state
     print =<< readTVarIO chats
     res <- atomically $ dispatchUpdateS contextFactory chats update
     maybe mempty createScenario res

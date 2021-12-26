@@ -40,17 +40,13 @@ setupDatabase = do
     pure conn 
 
 
-data SharedState = SharedState {
-        tasks :: SQLnTasks,
-        token :: String
-    }
-    
 main :: HasCallStack => IO ()
 main = do
     conn <- setupDatabase
     cdata <- setupChatDataS
     sqlTasks <- SQLnTasks conn <$> initTasks executeAsPossible
-    let handler = safeHandleUpdateS token sqlTasks cdata
+    let shared = SharedState sqlTasks token
+    let handler = safeHandleUpdateS shared cdata
     forAllUpdates token handler Nothing `finally` do
         close conn
 
