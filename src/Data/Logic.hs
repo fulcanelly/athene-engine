@@ -10,7 +10,7 @@
 module Data.Logic where
 import Control.FreeState as F
 
-import Data.Posts ( AdvPost, AdvPostTemplate(Post, title, fileId, link) )
+import Data.Posts 
 import Control.Monad.Free (Free (Pure, Free), foldFree, liftF)
 import Data.List (find)
 import API.Telegram

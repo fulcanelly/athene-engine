@@ -27,52 +27,19 @@ import Control.Applicative
 import API.Telegram (ChatId)
 import Control.Database hiding (ChatId)
 
-type family AnyOrId s a where
-    AnyOrId Identity a = a
-    AnyOrId s a = s a
 
-data AdvPostTemplate f = Post {
-    title :: AnyOrId f String
-    , userId :: AnyOrId f Int
-    , fileId :: AnyOrId f String -- adv photo 
-    , link :: AnyOrId f String
+data AdvPost = Post {
+    title :: String
+    , userId :: Int
+    , fileId :: String -- adv photo 
+    , link :: String
     }
 
-type AdvPost = AdvPostTemplate Identity
-type PartialPost = AdvPostTemplate Maybe
 
-deriving stock instance Show PartialPost
-deriving stock instance Generic PartialPost
-
-deriving anyclass instance ToJSON PartialPost
-deriving anyclass instance FromJSON PartialPost
+deriving stock instance Generic AdvPost
 
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
-
-instance Semigroup (AdvPostTemplate Maybe) where
-    a <> b = Post
-        (alt title)
-        (alt userId)
-        (alt fileId)
-        (alt link) where
-            alt f = f a <|> f b
-
-
-instance Monoid PartialPost where
-    mempty = emptyP
-
-sumP :: AdvPost -> PartialPost -> AdvPost
-sumP post pPost = post {
-        title = unpackM title (title post),
-        userId = unpackM userId (userId post),
-        fileId = unpackM fileId (fileId post),
-        link = unpackM link (link post)
-    }
-    where unpackM field = flip fromMaybe $ field pPost
--- can't make work: unpackM field = unpackM (field pPost) (field post)
-
-emptyP = Post Nothing Nothing Nothing Nothing
 
 setupDB :: SqlRequest ()
 setupDB =
@@ -80,17 +47,16 @@ setupDB =
     where query = "CREATE TABLE IF NOT EXISTS channel_posts(\
         \ title, user_id, file_id, link)"
 
-updatePost :: Int -> PartialPost -> SqlRequest Bool
-updatePost origin update = do
-    jpost <- getSpecificAt origin  
+updatePost :: AdvPost -> SqlRequest Bool
+updatePost Post{..} = do
+    jpost <- getSpecificAt userId  
     case jpost of 
         Nothing -> pure False 
         Just post -> do
-            execute "UPDATE channel_posts SET title = ?, user_id = ?, file_id = ?, link = ? WHERE user_id = ?" (updateEntry (summed post) origin)
+            execute "UPDATE channel_posts SET title = ?, file_id = ?, link = ? WHERE user_id = ?" updateEntry
             pure True
     where
-    updateEntry Post{..} origin = (title, userId, fileId, link, origin)
-    summed post = sumP post update
+    updateEntry = (title, fileId, link, userId)
 
 createNewPost :: AdvPost -> SqlRequest ()
 createNewPost Post{..}  =
