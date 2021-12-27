@@ -82,7 +82,7 @@ toMapper :: (Monad f) => FreeMapperBuilder f b c -> f (b -> b)
 toMapper (Pure next) = pure P.id
 toMapper (Free (Prompt mapper next)) = (.) <$> mapper <*> toMapper next
 
-
+-- update parsers
 
 expectFew :: Foldable t => t String -> Scenario (Maybe String)
 expectFew list = do
@@ -131,6 +131,8 @@ checkIsHavePost = isJust <$> loadMyPost
 
 sendWithButtons :: String -> [[String]] -> Scenario ()
 sendWithButtons a = eval . SendWith . sendTextNButtonsEntry a
+
+-- actual behavior 
 
 post :: Scenario ()
 post = do
@@ -240,6 +242,7 @@ lobby = do
         onText "review" review
     lobby
 
+-- hooks
 
 onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
