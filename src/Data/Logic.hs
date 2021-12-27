@@ -234,9 +234,9 @@ lobby :: Scenario ()
 lobby = do 
     offerFew "Lobby" do
         onText "post" do
-            post `returnOn` "Back"
+            post -- `returnOn` "Back"
         onText "find" do
-            findS `returnOn` "Back"
+            findS -- `returnOn` "Back"
         onText "review" review
     lobby
 
