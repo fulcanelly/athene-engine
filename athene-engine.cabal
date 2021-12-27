@@ -38,7 +38,8 @@ executable athene-engine
     Data.Logic,
     Control.TInter,
     Data.Favorites,
-    Control.Notifications 
+    Control.Notifications,
+    Data.Context
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
