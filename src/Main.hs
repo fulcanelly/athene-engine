@@ -31,6 +31,7 @@ import qualified Data.Favorites as Fav
 import qualified Data.Posts as Post
 import Control.Async
 import Control.Database
+import Data.Context
 
 setupDatabase :: IO Connection
 setupDatabase = do

@@ -39,27 +39,11 @@ import Data.Posts
 import Control.Database hiding (tasks)
 
 import Data.Favorites
+import Data.Context
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
 
-
-data Intervention
-    = Update ! Update
-    | AdvOffers Int
-    | Stop
-
-
-
-data Context
-    = Context {
-        mailbox :: TChan Intervention
-        , tokenC :: String
-        , sqlTasks :: SQLnTasks
-        , throttleTasks :: TChan Task
-        , chat :: Int
-        , returnTrigger :: Maybe (Update -> Bool)
-    }
 
 
 instance Show Context where
@@ -103,6 +87,7 @@ iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
         DislikePost Post{..} -> do
             void $ sqlTasks `runTransaction` do
                 _userId `dislikePostBy` chat
+
         UpdatePost post -> sqlTasks `runTransaction` 
                     updatePost post
                 `awaitIOAndThen` do
@@ -131,7 +116,6 @@ iterScenarioTg Context{..} (LoadMyPost func) = do
     sqlTasks `runTransaction` getSpecificAt chat
     `awaitIOAndThen` (pure . func)
 
-iterScenarioTg _ _ = error "unimplemented"
 
 returnContext :: Context -> (Update -> Bool) -> Context
 returnContext ctx pred = ctx { returnTrigger = Just pred }
@@ -141,12 +125,7 @@ returnContext ctx pred = ctx { returnTrigger = Just pred }
 startIter :: Context -> IO ()
 startIter ctx = foldFree (iterScenarioTg ctx) lobby
 
-newContext :: SharedState -> Update -> STM Context
-newContext shared update = Context
-    <$> newTChan <*> pure (token_ shared)
-    <*> pure (tasks shared) <*> newTChan
-    <*> pure (fromJust $ chatU update)
-    <*> pure Nothing
+
 
 type ChatRemover = STM ()
 
@@ -183,10 +162,7 @@ dispatchUpdateS contextFactory source update = do
             pure $ Just (removeChatSync source chat, ctx)
 
 
-data SharedState = SharedState {
-        tasks :: SQLnTasks,
-        token_ :: String
-    }
+
 
 safeHandleUpdateS :: SharedState -> TVar ChatData -> Update -> IO ()
 safeHandleUpdateS state chats update = do
