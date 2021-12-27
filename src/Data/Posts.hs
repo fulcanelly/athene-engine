@@ -11,6 +11,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 
 module Data.Posts where
@@ -26,15 +27,17 @@ import GHC.Generics (Generic)
 import Control.Applicative
 import API.Telegram (ChatId)
 import Control.Database hiding (ChatId)
+import Control.Lens (makeLenses)
 
 
 data AdvPost = Post {
-    title :: String
-    , userId :: Int
-    , fileId :: String -- adv photo 
-    , link :: String
+    _title :: String
+    , _userId :: Int
+    , _fileId :: String -- adv photo 
+    , _link :: String
     }
 
+$(makeLenses ''AdvPost)
 
 deriving stock instance Generic AdvPost
 
@@ -49,19 +52,19 @@ setupDB =
 
 updatePost :: AdvPost -> SqlRequest Bool
 updatePost Post{..} = do
-    jpost <- getSpecificAt userId  
+    jpost <- getSpecificAt _userId  
     case jpost of 
         Nothing -> pure False 
         Just post -> do
             execute "UPDATE channel_posts SET title = ?, file_id = ?, link = ? WHERE user_id = ?" updateEntry
             pure True
     where
-    updateEntry = (title, fileId, link, userId)
+    updateEntry = (_title, _fileId, _link, _userId)
 
 createNewPost :: AdvPost -> SqlRequest ()
 createNewPost Post{..}  =
     execute "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
-        postEntry = (title, userId, fileId, link)
+        postEntry = (_title, _userId, _fileId, _link)
 
 getSpecificAt :: Int -> SqlRequest (Maybe AdvPost)
 getSpecificAt userId =

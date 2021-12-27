@@ -103,7 +103,7 @@ post = do
 
     show = do
         Post{..} <- fromJust <$> loadMyPost
-        eval $ SendWith $ F.sendPhoto fileId (title <> "\n\nWhat to do ?") [["Edit"],["Back"]]
+        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n\nWhat to do ?") [["Edit"],["Back"]]
         handleFew do
             onText "Edit" do
                 pure ()
@@ -112,8 +112,8 @@ post = do
 
 
 showPost :: AdvPost -> String -> Scenario ()
-showPost Post{..} msg = eval $ SendWith $ F.sendPhoto fileId caption [["Like", "Dislike"], ["Back"]]
-    where caption = title <> "\n\n" <> link <> msg
+showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
+    where caption = _title <> "\n\n" <> _link <> msg
 
 findS :: Scenario ()
 findS = do
