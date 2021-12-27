@@ -24,7 +24,44 @@ import Data.Map as M
 import GHC.Exts (IsList)
 import qualified Data.Map as M
 import Data.List.Split (chunksOf)
+import Prelude as P
 
+
+type VoidHashBuilder a = HashBuilder a ()
+
+onText :: String -> Scenario b -> VoidHashBuilder (Scenario b)
+onText = putVal
+
+data HashBuilderF a next = PutValue String a next
+    deriving Functor
+
+type HashBuilder a = Free (HashBuilderF a)
+
+putVal ::String -> a -> HashBuilder a ()
+putVal k v = liftF $ PutValue k v ()
+
+buildTable :: HashBuilder a b -> Map String a
+buildTable (Pure next) = []
+buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
+
+offerFew :: String -> VoidHashBuilder (Scenario ()) -> Scenario ()
+offerFew greeting entry = do
+    let table = buildTable entry
+    eval $ SendWith $ sendTextNButtonsEntry greeting $ chunksOf 3 $ reverse (M.keys table)
+    text <- expect anyText
+    runFoundOrWarn text table
+
+handleFew :: VoidHashBuilder (Scenario ()) -> Scenario ()
+handleFew entry = do
+    text <- expect anyText
+    runFoundOrWarn text $ buildTable entry
+
+
+runFoundOrWarn text table =
+    case text `M.lookup` table of
+        Nothing -> do
+            evalReply "unknown option"
+        Just scen -> scen
 
 wrongOptionMessage = "Wrong option, try again"
 
@@ -152,40 +189,6 @@ branch `returnOn` word =
         pure ()
 
 
-type VoidHashBuilder a = HashBuilder a ()
-
-onText :: String -> Scenario b -> VoidHashBuilder (Scenario b)
-onText = putVal 
-
-data HashBuilderF a next = PutValue String a next  
-    deriving Functor 
-
-type HashBuilder a = Free (HashBuilderF a)
-
-putVal ::String -> a -> HashBuilder a ()
-putVal k v = liftF $ PutValue k v ()
-
-buildTable :: HashBuilder a b -> Map String a
-buildTable (Pure next) = [] 
-buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
-
-offerFew :: String -> VoidHashBuilder (Scenario ()) -> Scenario ()
-offerFew greeting entry = do
-    let table = buildTable entry
-    eval $ SendWith $ sendTextNButtonsEntry greeting $ chunksOf 3 $ reverse (M.keys table)
-    text <- expect anyText
-    runFoundOrWarn text table
-
-handleFew :: VoidHashBuilder (Scenario ()) -> Scenario ()
-handleFew entry = do
-    text <- expect anyText
-    runFoundOrWarn text $ buildTable entry
-
-runFoundOrWarn text table =
-    case text `M.lookup` table of 
-        Nothing -> do
-            evalReply "unknown option"
-        Just scen -> scen
 
 lobby :: Scenario ()
 lobby = do 
