@@ -82,7 +82,7 @@ iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
             void $ sqlTasks `runTransaction` do
                 _userId `likePostBy` chat
 
-            undefined
+            ctx `notifyAboutLike` chat
         DislikePost Post{..} -> do
             void $ sqlTasks `runTransaction` do
                 _userId `dislikePostBy` chat
