@@ -10,13 +10,13 @@
 module Data.Logic where
 import Control.FreeState as F
 
-import Data.Posts 
+import Data.Posts
 import Control.Monad.Free (Free (Pure, Free), foldFree, liftF)
 import Data.List (find)
 import API.Telegram
 import Data.Maybe
 import Data.Generics.Labels ()
-import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt )
+import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt, makeLenses, set)
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
 import Control.Monad (when, void, forever)
@@ -64,6 +64,24 @@ runFoundOrWarn text table =
         Just scen -> scen
 
 wrongOptionMessage = "Wrong option, try again"
+
+
+data MapperBuilderF mapper next
+     = Prompt mapper next
+    deriving Functor
+
+type FreeMapperBuilder a b = Free (MapperBuilderF (a (b -> b)))
+
+prompt :: (Monad f) => (a -> b -> b) -> f a -> FreeMapperBuilder f b ()
+prompt m s = liftF $ Prompt (m <$> s) ()
+
+promptM :: (Monad f) => (a -> b -> b) -> f (Maybe a) -> FreeMapperBuilder f b ()
+promptM m s = liftF $ Prompt (maybe P.id m <$> s) ()
+
+toMapper :: (Monad f) => FreeMapperBuilder f b c -> f (b -> b)
+toMapper (Pure next) = pure P.id
+toMapper (Free (Prompt mapper next)) = (.) <$> mapper <*> toMapper next
+
 
 
 expectFew :: Foldable t => t String -> Scenario (Maybe String)
