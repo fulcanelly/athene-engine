@@ -58,6 +58,7 @@ data Command
     = None
     | SendWith MessageEntry
     | CreatePost AdvPost
+    | UpdatePost AdvPost
     | LikePost AdvPost
     | DislikePost AdvPost
 

@@ -103,8 +103,10 @@ iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
         DislikePost Post{..} -> do
             void $ sqlTasks `runTransaction` do
                 _userId `dislikePostBy` chat
-
-
+        UpdatePost post -> sqlTasks `runTransaction` 
+                    updatePost post
+                `awaitIOAndThen` do
+                    const $ pure ()
         _ -> error "unimplemented behavior"
     pure next
 
