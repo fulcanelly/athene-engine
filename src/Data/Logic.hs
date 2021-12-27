@@ -250,6 +250,15 @@ onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
     offerFew ("You got " <> show count <> " adv offers") do
         onText "Show" do
+            evalReply "showing"
             review
         onText "Latter" do pure ()    
     continue
+
+
+startOnPostLike count = do
+    offerFew ("You got " <> show count <> " adv offers") do
+        onText "Show" do
+            evalReply "showing"
+        onText "Latter" do pure ()
+    lobby

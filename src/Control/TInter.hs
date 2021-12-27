@@ -21,7 +21,7 @@ import Data.Logic ( lobby, onPostLike )
 import Control.Monad.Free ( foldFree, liftF )
 import Control.Exception ( SomeException, catch, throw )
 import GHC.Conc (readTVar, atomically, writeTVar)
-import Control.Monad (void)
+import Control.Monad (void, forever, join)
 import Control.Concurrent.STM
     ( STM,
       TVar,
@@ -41,6 +41,7 @@ import Control.Database hiding (tasks)
 import Data.Favorites
 import Data.Context
 import Control.Notifications
+import Control.Concurrent.STM.TSem (waitTSem, signalTSem)
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
@@ -73,7 +74,7 @@ iterScenarioTg :: Context -> ScenarioF a -> IO a
 iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
     case cmd of
         SendWith entry -> answerWith ctx entry
-        CreatePost post -> sqlTasks `runTransaction` 
+        CreatePost post -> sqlTasks `runTransaction`
                 createNewPost post
             `awaitIOAndThen` do
                 const $ pure ()
@@ -82,15 +83,16 @@ iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
             void $ sqlTasks `runTransaction` do
                 _userId `likePostBy` chat
 
-            ctx `notifyAboutLike` chat
+            (ctx `notifyAboutLike` chat) _userId
         DislikePost Post{..} -> do
             void $ sqlTasks `runTransaction` do
                 _userId `dislikePostBy` chat
 
-        UpdatePost post -> sqlTasks `runTransaction` 
+        UpdatePost post -> sqlTasks `runTransaction`
                     updatePost post
                 `awaitIOAndThen` do
                     const $ pure ()
+                    
         _ -> error "unimplemented behavior"
     pure next
 
@@ -98,7 +100,7 @@ iterScenarioTg ctx expect @ (Expect pred) = do
     intervention <- atomically $ readTChan $ mailbox ctx
     case intervention of
         Update up -> handleUpdate ctx up expect
-        AdvOffers n -> do
+        AdvOffers n _ -> do
             let adjusted = onPostLike (liftF expect) n
             foldFree (iterScenarioTg ctx) adjusted
         Stop -> undefined
@@ -111,7 +113,7 @@ iterScenarioTg Context{..} (FindRandPost func) = do
     sqlTasks `runTransaction` findRandomPostExcluding chat
     `awaitIOAndThen` (pure . func)
 
-iterScenarioTg Context{..} (LoadMyPost func) = do 
+iterScenarioTg Context{..} (LoadMyPost func) = do
     sqlTasks `runTransaction` getSpecificAt chat
     `awaitIOAndThen` (pure . func)
 
@@ -121,8 +123,8 @@ returnContext ctx pred = ctx { returnTrigger = Just pred }
 
 
 
-startIter :: Context -> IO ()
-startIter ctx = foldFree (iterScenarioTg ctx) lobby
+startIter :: Scenario () -> Context -> IO ()
+startIter sc ctx = foldFree (iterScenarioTg ctx) sc
 
 
 
@@ -138,11 +140,14 @@ handleInterpreterFailure chatRem ctx err = do
     atomically chatRem
     answerWith ctx (sendTextNButtonsEntry ("something went wrong\n\n" ++  show err) [["restart"]])
 
-startNewScenario :: ChatRemover -> Context -> IO ThreadId
-startNewScenario chatRem ctx = forkIO do
-    startIter ctx `catchAny` handleInterpreterFailure chatRem ctx
+startNewScenario :: Scenario () -> ChatRemover -> Context -> IO ThreadId
+startNewScenario scen chatRem ctx = forkIO do
+    startIter scen ctx `catchAny` handleInterpreterFailure chatRem ctx
 
-dispatchUpdateS :: (Update -> STM Context)
+
+type ContextMaker = ChatId -> STM Context
+
+dispatchUpdateS :: ContextMaker
     -> TVar ChatData
     -> Update
     -> STM (Maybe (ChatRemover, Context))
@@ -156,23 +161,54 @@ dispatchUpdateS contextFactory source update = do
             pure Nothing
 
         Nothing -> do
-            ctx <- contextFactory update
+            ctx <- contextFactory (fromJust $ chatU update)
             writeTVar source $ (chat `M.insert` ctx) cdata
             pure $ Just (removeChatSync source chat, ctx)
 
 
-
-
-safeHandleUpdateS :: SharedState -> TVar ChatData -> Update -> IO ()
-safeHandleUpdateS state chats update = do
-    let contextFactory = newContext state
+safeHandleUpdateS :: ContextMaker-> TVar ChatData -> Update -> IO ()
+safeHandleUpdateS factory chats update = do
     print =<< readTVarIO chats
-    res <- atomically $ dispatchUpdateS contextFactory chats update
+    res <- atomically $ dispatchUpdateS factory chats update
     maybe mempty createScenario res
     where
     createScenario (chatRemover, ctx) = do
-        startNewScenario chatRemover ctx
+        startNewScenario lobby chatRemover ctx
         mempty
+
+handleAdvOffer :: ContextMaker -> Intervention -> TVar ChatData -> STM (IO())
+handleAdvOffer factory (AdvOffers count chat) cdata = do
+    cdata_ <- readTVar cdata
+
+    case chat `M.lookup` cdata_ of
+        Just ctx -> do
+            writeTChan (mailbox ctx) (AdvOffers count chat)
+            pure $ pure ()
+        Nothing -> do
+            ctx <- factory chat
+            writeTVar cdata $ (chat `M.insert` ctx) cdata_
+            pure do
+                void $ startNewScenario startOnPostLike (removeChatSync cdata chat) ctx
+
+  
+handleAdvOffer _ _ _ = error "should be called only with AdvOffers"
+
+handleAll :: SharedState -> TVar ChatData -> TChan Intervention -> IO ()
+handleAll state @SharedState{..} chats income = do
+    let contextFactory = newContext state
+
+    void $ forkIO $ forever do
+        intervention <- atomically do
+            waitTSem chatSem
+            readTChan income
+
+        print intervention
+        case intervention of
+            Update up -> safeHandleUpdateS contextFactory chats up
+            AdvOffers _ _ -> join $ atomically $ handleAdvOffer contextFactory intervention chats
+            Stop -> undefined
+
+        atomically $ signalTSem chatSem
 
 
 setupChatDataS :: IO (TVar ChatData)
