@@ -17,7 +17,7 @@ import Control.FreeState
 import Data.Maybe ( fromJust, fromMaybe )
 import API.ReplyMarkup (textButton)
 import qualified Data.Map as M
-import Data.Logic ( lobby, onPostLike )
+import Data.Logic 
 import Control.Monad.Free ( foldFree, liftF )
 import Control.Exception ( SomeException, catch, throw )
 import GHC.Conc (readTVar, atomically, writeTVar)
@@ -188,7 +188,7 @@ handleAdvOffer factory (AdvOffers count chat) cdata = do
             ctx <- factory chat
             writeTVar cdata $ (chat `M.insert` ctx) cdata_
             pure do
-                void $ startNewScenario startOnPostLike (removeChatSync cdata chat) ctx
+                void $ startNewScenario (startOnPostLike count)(removeChatSync cdata chat) ctx
 
   
 handleAdvOffer _ _ _ = error "should be called only with AdvOffers"
