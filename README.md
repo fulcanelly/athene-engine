@@ -1,8 +1,13 @@
 # athene-engine
 the telegram bot for auto mutual channel advertising
 
-
-
+### todo list
+  - [ ] state restoring
+  - [ ] lazy i18
+  - [ ] notification queue 
+  - [ ] post reviewing
+  - [ ] adjustable content
+  - [ ] link check
 
 ### tips 
 
