@@ -4,6 +4,9 @@ import Control.Concurrent.STM
 import Control.Database hiding (tasks)
 import Control.Async
 import Data.Maybe
+import Data.Map 
+
+data Notification = Notify ChatId String
 
 data Intervention
     = Update ! Update
@@ -11,10 +14,14 @@ data Intervention
     | Stop
     
 
+
 data SharedState = SharedState {
-        tasks :: SQLnTasks,
-        token_ :: String
+        tasks :: SQLnTasks
+        , token_ :: String
+        , notifications :: TChan Notification
     }
+
+
 
 
 data Context
@@ -34,3 +41,6 @@ newContext shared update = Context
     <*> pure (tasks shared) <*> newTChan
     <*> pure (fromJust $ chatU update)
     <*> pure Nothing
+
+
+type ChatData = Map ChatId Context

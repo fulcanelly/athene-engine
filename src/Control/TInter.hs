@@ -40,16 +40,15 @@ import Control.Database hiding (tasks)
 
 import Data.Favorites
 import Data.Context
+import Control.Notifications
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
 
 
-
 instance Show Context where
     show x = "<<Context>>"
 
-type ChatData = M.Map ChatId Context
 
 answerWith :: Context -> MessageEntry -> IO ()
 answerWith Context {..} entry = do
