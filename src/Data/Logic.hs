@@ -189,9 +189,10 @@ post = do
 
         evalReply "you post have updated"
     
-    onText_ text scenario = do
-        scenario
-        post
+    onText_ text scenario = 
+        onText text do 
+            scenario 
+            post
 
 
 showPost :: AdvPost -> String -> Scenario ()
