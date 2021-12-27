@@ -139,13 +139,11 @@ post = do
     exists <- checkIsHavePost
     offerFew "It's your post settings" do
         if exists then do
-            onText "edit" $ pure ()
-            onText "show" do 
-                show
-                post
-            onText "delete" $ pure ()
+            onText_ "edit" edit 
+            onText_ "show" show
+            onText_ "delete" $ pure ()
         else
-            onText "create" create
+            onText_ "create" create
         onText "back" $ pure ()
     where
     create = do
@@ -166,10 +164,9 @@ post = do
         eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n\nWhat to do ?") [["Edit"],["Back"]]
         handleFew do
             onText "Edit" do
-                pure ()
+                edit
             onText "Back" do
                 pure ()
-
     edit = do
         original @Post {..} <- fromJust <$> loadMyPost
 
@@ -196,7 +193,7 @@ post = do
         scenario
         post
 
-        
+
 showPost :: AdvPost -> String -> Scenario ()
 showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
     where caption = _title <> "\n\n" <> _link <> msg
