@@ -35,8 +35,8 @@ data AdvPost = Post {
     , _userId :: Int
     , _fileId :: String -- adv photo 
     , _link :: String
-    }
-
+    } deriving Eq
+    
 $(makeLenses ''AdvPost)
 
 deriving stock instance Generic AdvPost
