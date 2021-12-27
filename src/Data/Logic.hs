@@ -191,8 +191,12 @@ post = do
         when (updated /= original) (eval $ UpdatePost updated)
 
         evalReply "you post have updated"
+    
+    onText_ text scenario = do
+        scenario
+        post
 
-
+        
 showPost :: AdvPost -> String -> Scenario ()
 showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
     where caption = _title <> "\n\n" <> _link <> msg
