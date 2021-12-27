@@ -74,6 +74,9 @@ evalReply = eval . sendText
 checkIsHavePost :: Free ScenarioF Bool
 checkIsHavePost = isJust <$> loadMyPost
 
+sendWithButtons :: String -> [[String]] -> Scenario ()
+sendWithButtons a = eval . SendWith . sendTextNButtonsEntry a
+
 post :: Scenario ()
 post = do
     exists <- checkIsHavePost
