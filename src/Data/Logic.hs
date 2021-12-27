@@ -168,6 +168,28 @@ post = do
             onText "Back" do
                 pure ()
 
+    edit = do
+        original @Post {..} <- fromJust <$> loadMyPost
+
+        update <- toMapper do
+
+           -- promptM (set fileId) do
+             --   pure $ Just ""
+
+            prompt (set title) do
+                sendWithButtons "change title" [[_title]]
+                expect anyText
+
+            prompt (set link) do
+                sendWithButtons "change link" [[_link]]
+                expect anyText
+
+        let updated = update original
+
+        when (updated /= original) (eval $ UpdatePost updated)
+
+        evalReply "you post have updated"
+
 
 showPost :: AdvPost -> String -> Scenario ()
 showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
