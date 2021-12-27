@@ -14,7 +14,7 @@ import qualified Data.Map as M
 import Control.Monad ( guard )
 import API.Telegram
 import Data.Maybe ( fromJust )
-import Data.Posts ( AdvPost, AdvPostTemplate (Post) )
+import Data.Posts ( AdvPost )
 import Control.Exception (throw, catch, Exception, finally)
 import Data.Data
 import Data.Functor.Compose (Compose(Compose, getCompose))
@@ -58,6 +58,7 @@ data Command
     = None
     | SendWith MessageEntry
     | CreatePost AdvPost
+    | UpdatePost AdvPost
     | LikePost AdvPost
     | DislikePost AdvPost
 

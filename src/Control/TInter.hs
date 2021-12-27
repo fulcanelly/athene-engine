@@ -97,14 +97,16 @@ iterScenarioTg ctx @ Context{..} (Eval cmd next) = do
 
         LikePost Post{..} -> do
             void $ sqlTasks `runTransaction` do
-                userId `likePostBy` chat
+                _userId `likePostBy` chat
 
             undefined
         DislikePost Post{..} -> do
             void $ sqlTasks `runTransaction` do
-                userId `dislikePostBy` chat
-
-
+                _userId `dislikePostBy` chat
+        UpdatePost post -> sqlTasks `runTransaction` 
+                    updatePost post
+                `awaitIOAndThen` do
+                    const $ pure ()
         _ -> error "unimplemented behavior"
     pure next
 
@@ -125,6 +127,9 @@ iterScenarioTg Context{..} (FindRandPost func) = do
     sqlTasks `runTransaction` findRandomPostExcluding chat
     `awaitIOAndThen` (pure . func)
 
+iterScenarioTg Context{..} (LoadMyPost func) = do 
+    sqlTasks `runTransaction` getSpecificAt chat
+    `awaitIOAndThen` (pure . func)
 
 iterScenarioTg _ _ = error "unimplemented"
 

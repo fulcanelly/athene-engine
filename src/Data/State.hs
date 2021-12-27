@@ -2,8 +2,9 @@
 {-# LANGUAGE StandaloneDeriving #-}
 module Data.State where
 import Data.Functor.Identity
-import Data.Posts (AdvPostTemplate)
+import Data.Posts
 
+{-
 
 data OneMore a = One a | More a [a]
 
@@ -44,3 +45,4 @@ handleE = undefined
 
 
 
+-}
