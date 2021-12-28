@@ -9,6 +9,7 @@ import Data.Map
 import Data.Aeson (ToJSON, FromJSON)
 import GHC.Generics (Generic)
 import Control.Concurrent.STM.TSem (TSem)
+import Control.FreeState (Command)
 
 
 type Target = ChatId 
@@ -23,14 +24,14 @@ data Notification
 type OffersCount = Int
 
 data Intervention
-    = Update ! Update
+    = Update Update
     | AdvOffers OffersCount ChatId 
     | Stop
     deriving (Show, ToJSON, Generic, FromJSON)
 
 data SharedState = SharedState {
         tasks :: SQLnTasks
-        , token_ :: String
+        , execT :: ReqExecutor
         , notifications :: TChan Notification
         , chatSem :: TSem
     }
@@ -42,21 +43,28 @@ notifyAboutLike ctx from target = atomically do
 data Context
     = Context {
         mailbox :: TChan Intervention
-        , tokenC :: String
+        
+        , execT_ :: ReqExecutor
+        
         , sqlTasks :: SQLnTasks
         , throttleTasks :: TChan Task
         , chat :: Int
         , returnTrigger :: Maybe (Update -> Bool)
         , notify_ :: TChan Notification
+
+        , lastMessage :: Maybe Command
+        , lastInteraction :: Maybe Int
     }
 
 
 newContext :: SharedState -> ChatId -> STM Context
 newContext shared chatId = Context
-    <$> newTChan <*> pure (token_ shared)
+    <$> newTChan <*> pure (execT shared)
     <*> pure (tasks shared) <*> newTChan
     <*> pure chatId
     <*> pure Nothing
     <*> pure (notifications shared)
+    <*> pure Nothing 
+    <*> pure Nothing 
 
 type ChatData = Map ChatId Context

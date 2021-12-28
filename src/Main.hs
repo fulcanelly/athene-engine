@@ -2,6 +2,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE Strict #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE UndecidableInstances #-}
 --{-# OPTIONS_GHC -Wall #-}
 
 
@@ -60,12 +61,17 @@ main = do
     
     sem <- atomically $ newTSem 1
     
-    let shared = SharedState sqlTasks token notifs sem
+     
+    putStrLn "setting up long polling"
+    exec <- obtainExec token 
+    
+    let shared = SharedState sqlTasks exec notifs sem
     
     let pushUpdate =
             atomically . writeTChan intervents . Update  
 
     handleAll shared cdata intervents
- 
-    forAllUpdates token pushUpdate Nothing `finally` do
+
+    putStrLn "starting bot"
+    forAllUpdates exec pushUpdate Nothing `finally` do
         close conn
