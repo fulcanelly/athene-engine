@@ -8,6 +8,7 @@ the telegram bot for auto mutual channel advertising
   - [ ] post reviewing
   - [ ] adjustable content
   - [ ] link check
+  - [ ] spam protection
 
 ### tips 
 
