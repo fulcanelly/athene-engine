@@ -34,7 +34,6 @@ import Control.Lens ( (^?), (^.), _Just )
 import Network.Wreq.Session
 import Network.HTTP.Simple (getResponseBody)
 import Control.Concurrent (threadDelay, forkIO)
-import Network.Curl.Download
 import Control.Concurrent.STM (newTChan, newTChanIO)
 import Control.Async
 
