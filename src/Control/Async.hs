@@ -76,6 +76,9 @@ awaitIOAndThen :: IO (Future t) -> (t -> IO r) -> IO r
 awaitIOAndThen future action =
     (`awaitAndThen` action) =<< future
 
+awaitIO :: IO (Future t) -> IO t
+awaitIO = flip awaitIOAndThen pure
+
 testSem = do 
     sem <- atomically $ newTSem 1
     let jobs = [ sem `runInSem` printPaused i | i <- [1..]]
