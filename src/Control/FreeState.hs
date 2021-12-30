@@ -28,8 +28,8 @@ data MessageEntry
     }
     deriving Show
 
-sendText :: String -> Command
-sendText text = SendWith $ MessageEntry [("text", text)] SendMessage
+sendText :: String -> MessageEntry
+sendText text = MessageEntry [("text", text)] SendMessage
 
 strTreeToButtons :: [[String]] -> String
 strTreeToButtons buttons = kbToJSON . getCompose $ KButton <$> Compose buttons

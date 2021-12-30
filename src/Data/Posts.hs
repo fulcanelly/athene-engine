@@ -35,11 +35,9 @@ data AdvPost = Post {
     , _userId :: Int
     , _fileId :: String -- adv photo 
     , _link :: String
-    } deriving Eq
+    } deriving (Eq, Show, Generic, Read, ToJSON, FromJSON)
     
 $(makeLenses ''AdvPost)
-
-deriving stock instance Generic AdvPost
 
 instance FromRow AdvPost where
     fromRow = Post <$> field <*> field <*> field <*> field
