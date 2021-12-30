@@ -36,12 +36,14 @@ import Data.Context
 import Control.Notifications
 import Control.Concurrent.STM 
 import Control.Concurrent.STM.TSem (newTSem)
+import  Control.Restore as Res
 
 setupDatabase :: IO Connection
 setupDatabase = do
     conn <- open "db.sqlite"
     conn `runSql` Post.setupDB 
     conn `runSql` Fav.setupDB 
+    conn `runSql` Res.setupDB
     pure conn 
 
 
