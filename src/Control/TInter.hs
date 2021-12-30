@@ -46,7 +46,7 @@ import Control.FreeState
 import Control.Monad (forever, join, void)
 import Control.Monad.Free (foldFree, liftF)
 import Control.Notifications ()
-import Control.Restore ( addEvent_, loadState, restoreScen )
+import Control.Restore ( addEvent_, loadState, restoreScen, IsEvent )
 import Data.Context
     ( newContext,
       notifyAboutLike,
@@ -90,58 +90,56 @@ handleUpdate ctx update self@(Expect pred) = do
 handleUpdate _ _ _ = error "should run only with ScenarioF being Expect"
 
 iterScenarioTg :: Context -> ScenarioF a -> IO a
-iterScenarioTg ctx@Context {..} (Eval cmd next) = do
-  case cmd of
-    SendWith entry -> answerWith ctx entry
-    CreatePost post ->
-      sqlTasks
-        `runTransaction` createNewPost post
-        `awaitIOAndThen` do
-          const $ pure ()
-    LikePost Post {..} -> do
-      void $
-        sqlTasks `runTransaction` do
-          _userId `likePostBy` chat
+iterScenarioTg ctx@Context {..} scen = 
+  case scen of
+  Eval cmd next -> do
+    case cmd of
+      SendWith entry -> answerWith ctx entry
+      CreatePost post ->
+        awaitIO $ sqlTasks `runTransaction` createNewPost post
+         
+      LikePost Post {..} -> do
+        void $ sqlTasks `runTransaction` do _userId `likePostBy` chat
+        (ctx `notifyAboutLike` chat) _userId
 
-      (ctx `notifyAboutLike` chat) _userId
-    DislikePost Post {..} -> do
-      void $
-        sqlTasks `runTransaction` do
-          _userId `dislikePostBy` chat
-    UpdatePost post ->
-      sqlTasks
-        `runTransaction` updatePost post
-        `awaitIOAndThen` do
-          const $ pure ()
-    _ -> error "unimplemented behavior"
-  pure next
-iterScenarioTg ctx@Context {..} expect@(Expect pred) = do
-  intervention <- atomically $ readTChan mailbox
-  sqlTasks `runTransaction` do chat `addEvent_` intervention
+      DislikePost Post {..} -> do
+        void $
+          sqlTasks `runTransaction` do
+            _userId `dislikePostBy` chat
+      UpdatePost post ->
+        void $ awaitIO $ sqlTasks `runTransaction` updatePost post
 
-  case intervention of
-    Update up -> handleUpdate ctx up expect
-    AdvOffers n _ -> do
-      let adjusted = onPostLike (liftF expect) n
-      foldFree (iterScenarioTg ctx) adjusted
-    Stop -> undefined
-iterScenarioTg ctx (ReturnIf pred branch falling) = do
-  foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling
-  where
-    handleFalling = iterScenarioTg ctx `foldFree` falling
-iterScenarioTg Context {..} (FindRandPost func) = do
-  sqlTasks `runTransaction` findRandomPostExcluding chat `awaitIOAndThen` go
-  where
-    go post = do
-      sqlTasks `runTransaction` do chat `addEvent_` post
-      pure $ func post
-iterScenarioTg Context {..} (LoadMyPost func) = do
-  sqlTasks `runTransaction` getSpecificAt chat `awaitIOAndThen` go
-  where
-    go post = do
-      sqlTasks `runTransaction` do chat `addEvent_` post
-      pure $ func post
+      _ -> error "unimplemented behavior"
+    pure next
 
+  expect @(Expect pred) ->  do
+    intervention <- atomically $ readTChan mailbox
+    sqlTasks `runTransaction` do chat `addEvent_` intervention
+
+    case intervention of
+      Update up -> handleUpdate ctx up expect
+      AdvOffers n _ -> do
+        let adjusted = onPostLike (liftF expect) n
+        foldFree (iterScenarioTg ctx) adjusted
+      _ -> error "not implemented"
+
+  ReturnIf pred branch falling -> 
+    foldFree (iterScenarioTg $ returnContext ctx pred) branch `catchReturn` const handleFalling
+    where
+      handleFalling = iterScenarioTg ctx `foldFree` falling
+
+  FindRandPost func -> 
+    sqlTasks `runTransaction` findRandomPostExcluding chat `awaitIOAndThen` do storeEventAndApply func
+
+  LoadMyPost func -> do
+    sqlTasks `runTransaction` getSpecificAt chat `awaitIOAndThen` do storeEventAndApply func
+
+  where 
+    storeEventAndApply :: IsEvent e => (e -> b) -> e -> IO b 
+    storeEventAndApply func event = do 
+        sqlTasks `runTransaction` do chat `addEvent_` event
+        pure $ func event
+        
 returnContext :: Context -> (Update -> Bool) -> Context
 returnContext ctx pred = ctx {returnTrigger = Just pred}
 
