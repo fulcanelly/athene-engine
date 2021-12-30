@@ -124,7 +124,7 @@ anyText update = update ^? #message . _Just . #text . _Just
 
 
 evalReply :: String -> Scenario ()
-evalReply = eval . sendText
+evalReply = eval . SendWith . sendText
 
 checkIsHavePost :: Free ScenarioF Bool
 checkIsHavePost = isJust <$> loadMyPost
@@ -141,7 +141,7 @@ post = do
         if exists then do
             onText_ "edit" edit 
             onText_ "show" show
-            onText_ "delete" $ pure ()
+            onText "delete" delete
         else
             onText_ "create" create
         onText "back" $ pure ()
@@ -161,7 +161,7 @@ post = do
 
     show = do
         Post{..} <- fromJust <$> loadMyPost
-        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n\nWhat to do ?") [["Edit"],["Back"]]
+        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n" <> _link <> "\n\nWhat to do ?") [["Edit"],["Back"]]
         handleFew do
             onText "Edit" do
                 edit
@@ -188,7 +188,12 @@ post = do
         when (updated /= original) (eval $ UpdatePost updated)
 
         evalReply "you post have updated"
-    
+    delete = do 
+        offerFew "Are you sure you want to delete your post ?" do
+            onText "Yes" do
+                pure ()
+            onText "Back" do
+                pure ()
     onText_ text scenario = 
         onText text do 
             scenario 
@@ -215,8 +220,10 @@ findS = do
         handleFew do 
             onText "Like" do   
                 eval $ LikePost post
+                findS
             onText "Dislike" do
                 eval $ DislikePost post
+                findS
             onText "Back" $ pure ()
 
 
@@ -228,6 +235,7 @@ isTextMatchU text update = case textU update of
   Nothing -> False
   Just s -> text == s
 
+returnOn :: Scenario () -> String -> Scenario ()
 branch `returnOn` word =
     returnIf (isTextMatchU word) branch do
         pure ()
@@ -236,7 +244,7 @@ branch `returnOn` word =
 
 lobby :: Scenario ()
 lobby = do 
-    offerFew "Lobby" do
+    offerFew "Main menu" do
         onText "post" do
             post -- `returnOn` "Back"
         onText "find" do
