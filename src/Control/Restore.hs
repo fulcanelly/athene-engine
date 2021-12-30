@@ -48,7 +48,9 @@ loadState chat = query "SELECT blob FROM event_storage WHERE chat = ?" (Only cha
 
 
 restoreScen :: [SavedEvent] -> Free ScenarioF a -> Free ScenarioF a
-restoreScen [] bot = bot
+restoreScen [] bot = case bot of 
+  Free (Eval cmd next) -> restoreScen [] next
+  _ -> bot 
 
 restoreScen whole @(e : rest) bot = case bot of
   Pure a -> error "can't be pure"
