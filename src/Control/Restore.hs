@@ -60,10 +60,11 @@ restoreScen whole @(e : rest) bot = case bot of
     
     Eval com fr -> restoreScen whole fr
     
-    ReturnIf p fr fr' -> error "na"
+    ReturnIf p fr fr' -> error "can't be done"
     
-    FindRandPost f -> error "na2"
-    
+    FindRandPost f -> 
+      let (Posted post) = e in restoreScen rest (f post) 
+
     LoadMyPost f -> do
-      let (Posted post) = e in  restoreScen rest (f post) 
+      let (Posted post) = e in restoreScen rest (f post) 
 
