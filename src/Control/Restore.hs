@@ -14,6 +14,7 @@ import Data.Aeson
 import Database.SQLite.Simple hiding (execute_, execute, query)
 import GHC.Stack
 import Data.Logic (lobby)
+import API.Telegram (ChatId)
 
 data SavedEvent
   = Intervened Intervention
@@ -43,9 +44,12 @@ addEvent chat event =
 addEvent_ :: IsEvent e => Int -> e -> SqlRequest ()
 addEvent_ chat event = addEvent chat (toEvent event)
 
-loadState :: Int -> SqlRequest [SavedEvent]
+loadState :: ChatId -> SqlRequest [SavedEvent]
 loadState chat = query "SELECT blob FROM event_storage WHERE chat = ?" (Only chat)
 
+
+cleanState :: ChatId -> SqlRequest ()
+cleanState chat = execute "DELETE FROM event_storage WHERE chat = ?" (Only chat)
 
 restoreScen :: [SavedEvent] -> Free ScenarioF a -> Free ScenarioF a
 restoreScen [] bot = case bot of 
@@ -70,3 +74,4 @@ restoreScen whole @(e : rest) bot = case bot of
     LoadMyPost f -> do
       let (Posted post) = e in restoreScen rest (f post) 
 
+    Record next -> restoreScen whole next

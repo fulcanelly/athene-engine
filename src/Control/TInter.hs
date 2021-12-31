@@ -46,7 +46,7 @@ import Control.FreeState
 import Control.Monad (forever, join, void)
 import Control.Monad.Free (foldFree, liftF)
 import Control.Notifications ()
-import Control.Restore ( addEvent_, loadState, restoreScen, IsEvent )
+import Control.Restore ( addEvent_, loadState, restoreScen, IsEvent, cleanState )
 import Data.Context
     ( newContext,
       notifyAboutLike,
@@ -134,11 +134,15 @@ iterScenarioTg ctx@Context {..} scen =
   LoadMyPost func -> do
     sqlTasks `runTransaction` getSpecificAt chat `awaitIOAndThen` do storeEventAndApply func
 
+  Record what -> do
+    awaitIO $ sqlTasks `runTransaction` cleanState chat
+    pure what
+
   where 
     storeEventAndApply :: IsEvent e => (e -> b) -> e -> IO b 
     storeEventAndApply func event = do 
-        sqlTasks `runTransaction` do chat `addEvent_` event
-        pure $ func event
+      sqlTasks `runTransaction` do chat `addEvent_` event
+      pure $ func event
         
 returnContext :: Context -> (Update -> Bool) -> Context
 returnContext ctx pred = ctx {returnTrigger = Just pred}
