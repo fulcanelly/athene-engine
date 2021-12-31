@@ -90,10 +90,6 @@ openHTTPS :: String -> IO LB.ByteString
 openHTTPS = HC.simpleHttp
 
 
-token :: [Char]
-token = "2094069209:AAHoBnp3rbASgqR4ZNzgN26MJZWT8jW9xX4"
-
-
 data Request =
     GetMe |
     GetUpdates |
