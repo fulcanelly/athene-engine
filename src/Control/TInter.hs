@@ -34,7 +34,7 @@ import Control.Concurrent.STM
   )
 import Control.Concurrent.STM.TSem (signalTSem, waitTSem)
 import Control.Database ( runTransaction )
-import Control.Exception (SomeException, catch, throw)
+import Control.Exception (SomeException (SomeException), catch, throw, finally, PatternMatchFail (PatternMatchFail), catches)
 import Control.FreeState
     ( catchReturn,
       sendText,
@@ -59,11 +59,6 @@ import Data.Logic ( lobby, onPostLike, startOnPostLike )
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Posts
-    ( createNewPost,
-      findRandomPostExcluding,
-      getSpecificAt,
-      updatePost,
-      AdvPost(Post, _link, _fileId, _userId, _title) )
 import Database.SQLite.Simple ()
 import GHC.Conc (atomically, readTVar, writeTVar)
 
@@ -174,6 +169,12 @@ type ContextMaker = ChatId -> STM Context
 newtype ScenarioStart
   = ScenarioStart (Scenario ())
 
+
+tryRestoreStateOrLobby scen = (scen `seq` pure scen)
+  `catch` (\(e :: SomeException) -> do
+    putStrLn $ "can't restore state for reason: " <> show e
+    pure lobby)
+
 deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> Scenario () -> IO ()
 deliverMail chatRem factory cdata inerv start = do
   cdata_ <- readTVarIO cdata
@@ -187,9 +188,15 @@ deliverMail chatRem factory cdata inerv start = do
       tasks <- awaitIO $ sqlTasks ctx `runTransaction` loadState chat
       atomically $ writeTVar cdata $ (chat `M.insert` ctx) cdata_
 
-      void $ startNewScenario chatRem ctx if null tasks then start else restoreScen tasks lobby
+      if null tasks 
+        then startScen ctx start
+        else do
+          scen <- tryRestoreStateOrLobby (restoreScen tasks lobby) 
+          startScen ctx scen 
 
       deliverMail chatRem factory cdata inerv start
+
+      where startScen ctx = void . startNewScenario chatRem ctx 
 
 chatOf :: Intervention -> Int
 chatOf (Update upd) = fromJust $ chatU upd
