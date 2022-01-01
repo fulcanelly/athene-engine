@@ -46,6 +46,8 @@ setupDatabase = do
     conn `runSql` Res.setupDB
     pure conn 
 
+token :: IO String
+token = readFile "token"
 
 main :: HasCallStack => IO ()
 main = do
@@ -65,7 +67,7 @@ main = do
     
      
     putStrLn "setting up long polling"
-    exec <- obtainExec token 
+    exec <- obtainExec =<< token 
     
     let shared = SharedState sqlTasks exec notifs sem
     

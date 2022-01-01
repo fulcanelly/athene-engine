@@ -243,13 +243,14 @@ branch `returnOn` word =
 
 
 lobby :: Scenario ()
-lobby = do 
+lobby = do
     offerFew "Main menu" do
         onText "post" do
             post -- `returnOn` "Back"
         onText "find" do
             findS -- `returnOn` "Back"
         onText "review" review
+    record
     lobby
 
 -- hooks

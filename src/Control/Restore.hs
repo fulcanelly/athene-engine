@@ -14,10 +14,13 @@ import Data.Aeson
 import Database.SQLite.Simple hiding (execute_, execute, query)
 import GHC.Stack
 import Data.Logic (lobby)
+import API.Telegram (ChatId)
+import Control.Exception (Exception, catch, throw)
 
 data SavedEvent
   = Intervened Intervention
   | Posted (Maybe AdvPost)
+  | Sent
   deriving (Show, Generic, ToJSON, FromJSON)
 
 instance FromRow SavedEvent where
@@ -43,26 +46,38 @@ addEvent chat event =
 addEvent_ :: IsEvent e => Int -> e -> SqlRequest ()
 addEvent_ chat event = addEvent chat (toEvent event)
 
-loadState :: Int -> SqlRequest [SavedEvent]
+loadState :: ChatId -> SqlRequest [SavedEvent]
 loadState chat = query "SELECT blob FROM event_storage WHERE chat = ?" (Only chat)
 
+cleanState :: ChatId -> SqlRequest ()
+cleanState chat = execute "DELETE FROM event_storage WHERE chat = ?" (Only chat)
+
+newtype CantRestore = CantRestore String 
+  deriving (Show, Exception)
+
+catchRestore :: IO a -> (CantRestore -> IO a) -> IO a
+catchRestore = catch
 
 restoreScen :: [SavedEvent] -> Free ScenarioF a -> Free ScenarioF a
 restoreScen [] bot = case bot of 
   Free (Eval cmd next) -> restoreScen [] next
+  Free (Record next) -> restoreScen [] next
   _ -> bot 
 
 restoreScen whole @(e : rest) bot = case bot of
-  Pure a -> error "can't be pure"
+  Pure a -> throw $ CantRestore "can't be pure"
   Free sf -> case sf of 
     Expect f -> do 
       let (Intervened (Update u)) = e in case f u of
-        Nothing -> error "whyyy"
+        Nothing -> throw $ CantRestore "???"
         Just fr -> restoreScen rest fr 
     
-    Eval com fr -> restoreScen whole fr
+    Eval com fr -> do 
+      case com of
+        SendWith me -> restoreScen rest fr
+        _ -> restoreScen whole fr
     
-    ReturnIf p fr fr' -> error "can't be done"
+    ReturnIf p fr fr' -> throw $ CantRestore "can't be done"
     
     FindRandPost f -> 
       let (Posted post) = e in restoreScen rest (f post) 
@@ -70,3 +85,4 @@ restoreScen whole @(e : rest) bot = case bot of
     LoadMyPost f -> do
       let (Posted post) = e in restoreScen rest (f post) 
 
+    Record next -> restoreScen whole next

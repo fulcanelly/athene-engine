@@ -34,7 +34,7 @@ import Control.Concurrent.STM
   )
 import Control.Concurrent.STM.TSem (signalTSem, waitTSem)
 import Control.Database ( runTransaction )
-import Control.Exception (SomeException, catch, throw)
+import Control.Exception (SomeException (SomeException), catch, throw, finally, PatternMatchFail (PatternMatchFail), catches)
 import Control.FreeState
     ( catchReturn,
       sendText,
@@ -46,7 +46,7 @@ import Control.FreeState
 import Control.Monad (forever, join, void)
 import Control.Monad.Free (foldFree, liftF)
 import Control.Notifications ()
-import Control.Restore ( addEvent_, loadState, restoreScen, IsEvent )
+import Control.Restore 
 import Data.Context
     ( newContext,
       notifyAboutLike,
@@ -59,11 +59,6 @@ import Data.Logic ( lobby, onPostLike, startOnPostLike )
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Posts
-    ( createNewPost,
-      findRandomPostExcluding,
-      getSpecificAt,
-      updatePost,
-      AdvPost(Post, _link, _fileId, _userId, _title) )
 import Database.SQLite.Simple ()
 import GHC.Conc (atomically, readTVar, writeTVar)
 
@@ -90,11 +85,14 @@ handleUpdate ctx update self@(Expect pred) = do
 handleUpdate _ _ _ = error "should run only with ScenarioF being Expect"
 
 iterScenarioTg :: Context -> ScenarioF a -> IO a
-iterScenarioTg ctx@Context {..} scen = 
+iterScenarioTg ctx@Context {..} scen =
   case scen of
   Eval cmd next -> do
     case cmd of
-      SendWith entry -> answerWith ctx entry
+      SendWith entry -> do
+        answerWith ctx entry
+        awaitIO $ sqlTasks `runTransaction` do chat `addEvent` Sent 
+        
       CreatePost post ->
         awaitIO $ sqlTasks `runTransaction` createNewPost post
          
@@ -134,11 +132,15 @@ iterScenarioTg ctx@Context {..} scen =
   LoadMyPost func -> do
     sqlTasks `runTransaction` getSpecificAt chat `awaitIOAndThen` do storeEventAndApply func
 
+  Record what -> do
+    awaitIO $ sqlTasks `runTransaction` cleanState chat
+    pure what
+
   where 
     storeEventAndApply :: IsEvent e => (e -> b) -> e -> IO b 
     storeEventAndApply func event = do 
-        sqlTasks `runTransaction` do chat `addEvent_` event
-        pure $ func event
+      sqlTasks `runTransaction` do chat `addEvent_` event
+      pure $ func event
         
 returnContext :: Context -> (Update -> Bool) -> Context
 returnContext ctx pred = ctx {returnTrigger = Just pred}
@@ -167,6 +169,12 @@ type ContextMaker = ChatId -> STM Context
 newtype ScenarioStart
   = ScenarioStart (Scenario ())
 
+
+tryRestoreStateOrLobby scen = (scen `seq` pure scen)
+  `catch` (\(e :: SomeException) -> do
+    putStrLn $ "can't restore state for reason: " <> show e
+    pure lobby)
+
 deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> Scenario () -> IO ()
 deliverMail chatRem factory cdata inerv start = do
   cdata_ <- readTVarIO cdata
@@ -180,9 +188,15 @@ deliverMail chatRem factory cdata inerv start = do
       tasks <- awaitIO $ sqlTasks ctx `runTransaction` loadState chat
       atomically $ writeTVar cdata $ (chat `M.insert` ctx) cdata_
 
-      void $ startNewScenario chatRem ctx if null tasks then start else restoreScen tasks lobby
+      if null tasks 
+        then startScen ctx start
+        else do
+          scen <- tryRestoreStateOrLobby (restoreScen tasks lobby) 
+          startScen ctx scen 
 
       deliverMail chatRem factory cdata inerv start
+
+      where startScen ctx = void . startNewScenario chatRem ctx 
 
 chatOf :: Intervention -> Int
 chatOf (Update upd) = fromJust $ chatU upd
