@@ -15,6 +15,7 @@ import Database.SQLite.Simple hiding (execute_, execute, query)
 import GHC.Stack
 import Data.Logic (lobby)
 import API.Telegram (ChatId)
+import Control.Exception (Exception, catch, throw)
 
 data SavedEvent
   = Intervened Intervention
