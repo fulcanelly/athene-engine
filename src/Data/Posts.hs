@@ -60,7 +60,7 @@ updatePost Post{..} = do
     updateEntry = (_title, _fileId, _link, _userId)
 
 createNewPost :: AdvPost -> SqlRequest ()
-createNewPost Post{..}  =
+createNewPost Post{..} =
     execute "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where
         postEntry = (_title, _userId, _fileId, _link)
 
@@ -72,6 +72,10 @@ getFewExcept :: Int -> String -> SqlRequest [AdvPost]
 getFewExcept count userId =
     query "SELECT * from channel_posts WHERE user_id != ? LIMIT ?" (userId, count)
 
-findRandomPostExcluding :: ChatId  -> SqlRequest (Maybe AdvPost)
+findRandomPostExcluding :: ChatId -> SqlRequest (Maybe AdvPost)
 findRandomPostExcluding userId  =
-    listToMaybe <$> query  "SELECT * FROM channel_posts WHERE user_id != ? ORDER BY RANDOM() LIMIT 1" (Only (userId :: Int))
+    listToMaybe <$> query " \
+        \ SELECT pst.* FROM channel_posts AS pst \
+        \ LEFT JOIN channel_favorites AS fav ON pst.user_id = fav.subject \
+        \ WHERE pst.user_id != ? AND (subject IS NULL OR fav.user_id != ?) \
+        \ ORDER BY RANDOM() LIMIT 1" (userId, userId)
