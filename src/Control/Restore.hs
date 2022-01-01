@@ -19,6 +19,7 @@ import API.Telegram (ChatId)
 data SavedEvent
   = Intervened Intervention
   | Posted (Maybe AdvPost)
+  | Sent
   deriving (Show, Generic, ToJSON, FromJSON)
 
 instance FromRow SavedEvent where
@@ -54,6 +55,7 @@ cleanState chat = execute "DELETE FROM event_storage WHERE chat = ?" (Only chat)
 restoreScen :: [SavedEvent] -> Free ScenarioF a -> Free ScenarioF a
 restoreScen [] bot = case bot of 
   Free (Eval cmd next) -> restoreScen [] next
+  Free (Record next) -> restoreScen [] next
   _ -> bot 
 
 restoreScen whole @(e : rest) bot = case bot of
@@ -64,7 +66,10 @@ restoreScen whole @(e : rest) bot = case bot of
         Nothing -> error "whyyy"
         Just fr -> restoreScen rest fr 
     
-    Eval com fr -> restoreScen whole fr
+    Eval com fr -> do 
+      case com of
+        SendWith me -> restoreScen rest fr
+        _ -> restoreScen whole fr
     
     ReturnIf p fr fr' -> error "can't be done"
     

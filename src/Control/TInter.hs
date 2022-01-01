@@ -46,7 +46,7 @@ import Control.FreeState
 import Control.Monad (forever, join, void)
 import Control.Monad.Free (foldFree, liftF)
 import Control.Notifications ()
-import Control.Restore ( addEvent_, loadState, restoreScen, IsEvent, cleanState )
+import Control.Restore 
 import Data.Context
     ( newContext,
       notifyAboutLike,
@@ -90,11 +90,14 @@ handleUpdate ctx update self@(Expect pred) = do
 handleUpdate _ _ _ = error "should run only with ScenarioF being Expect"
 
 iterScenarioTg :: Context -> ScenarioF a -> IO a
-iterScenarioTg ctx@Context {..} scen = 
+iterScenarioTg ctx@Context {..} scen =
   case scen of
   Eval cmd next -> do
     case cmd of
-      SendWith entry -> answerWith ctx entry
+      SendWith entry -> do
+        answerWith ctx entry
+        awaitIO $ sqlTasks `runTransaction` do chat `addEvent` Sent 
+        
       CreatePost post ->
         awaitIO $ sqlTasks `runTransaction` createNewPost post
          
