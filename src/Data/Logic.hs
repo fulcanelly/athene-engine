@@ -241,14 +241,14 @@ branch `returnOn` word =
         pure ()
 
 
-
 lobby :: Scenario ()
 lobby = do
+    have <- checkIsHavePost
     offerFew "Main menu" do
         onText "post" do
             post -- `returnOn` "Back"
-        onText "find" do
-            findS -- `returnOn` "Back"
+        when have do 
+            onText "find" findS 
         onText "review" review
     record
     lobby
