@@ -8,7 +8,9 @@
 module API.ReplyMarkup where
 import GHC.Generics
 import Data.Aeson
-import qualified Data.ByteString.Lazy.Char8 as LB
+import Data.Text.Encoding
+import Data.ByteString.Lazy (toStrict)
+import Data.Text
 
 newtype KeyboardButton = KButton {
         text :: String
@@ -55,7 +57,8 @@ markupOfBtn mark = ReplyKeyboardMarkup (Just mark) False
 kbToJSON :: [[KeyboardButton]] -> String
 kbToJSON = toJSONString . markupOfBtn
 
-toJSONString = LB.unpack . encode 
 
+toJSONString :: ToJSON a => a -> String
+toJSONString = unpack . decodeUtf8 . toStrict . encode
 
 disableKb = ReplyKeyboardRemove True Nothing 
