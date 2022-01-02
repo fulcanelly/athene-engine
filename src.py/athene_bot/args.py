@@ -4,20 +4,19 @@
 import argparse
 from typing import get_type_hints
 
-from .config import Config
-
 
 class Args:
-    def __init__(self):
+    def __init__(self, from_type: type):
+        self.type = from_type
         self.parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
 
-        default = Config()
-        hints = get_type_hints(Config, include_extras=True)
+        default = self.type()
+        hints = get_type_hints(self.type, include_extras=True)
         for name, t in hints.items():
             assert hasattr(t, '__args__') and hasattr(t, '__metadata__'), \
-                f'Config.{name} should have `Annotated` type hint'
+                f'{self.type.__name__}.{name} should have Annotated type hint'
 
             args = list()
             if len(name) > 2:
@@ -34,5 +33,5 @@ class Args:
                 default=getattr(default, name)
             )
 
-    def parse_args(self) -> Config:
-        return Config(**vars(self.parser.parse_args()))
+    def parse_args(self) -> object:
+        return self.type(**vars(self.parser.parse_args()))

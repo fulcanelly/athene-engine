@@ -151,7 +151,7 @@ class Bot:
 def main() -> None:
     try:
         asyncio.get_event_loop().run_until_complete(
-            Bot(Args().parse_args()).run()
+            Bot(Args(Config).parse_args()).run()
         )
 
     except KeyboardInterrupt:
