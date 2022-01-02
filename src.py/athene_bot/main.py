@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import re
 import asyncio
 # import logging  # TODO: add logging
-from pathlib import Path
 from datetime import datetime
 
 
 from telethon import functions
 from telethon import TelegramClient
+from telethon.utils import parse_username
 from telethon.tl.types import Channel as TlChannel
+from telethon.errors import UserAlreadyParticipantError, RPCError
 
 from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
@@ -20,9 +22,7 @@ from .config import Config
 from .utils import aenumerate
 
 
-SELF_DIR = Path(__file__).absolute().parent
-
-
+PLUS_RE = re.compile(r'.*/\+([^/]+)$')
 Base = declarative_base()
 
 
@@ -128,6 +128,18 @@ class Bot:
                         channel_id=channel.id,
                     ))
 
+    async def try_join(self, hash: str) -> bool:
+        try:
+            await self.user(functions.messages.ImportChatInviteRequest(hash))
+
+        except UserAlreadyParticipantError:
+            pass
+
+        except RPCError:
+            return False
+
+        return True
+
     async def run(self) -> None:
         await self.user.start()
 
@@ -137,8 +149,15 @@ class Bot:
         while not False:  # TODO: optimize
             with self.config.channels.open() as fptr:
                 for channel in fptr:
+                    if match := PLUS_RE.match(channel):
+                        channel = f'https://t.me/joinchat/{match.group(1)}'
+
+                    hash, is_invite = parse_username(channel)
+                    if is_invite:
+                        if not await self.try_join(hash):
+                            continue
+
                     channel = await self.user.get_entity(channel)
-                    # TODO: handle private channels
 
                     if not isinstance(channel, TlChannel):
                         continue
