@@ -1,0 +1,3 @@
+xdg
+Telethon[cryptg]
+SQLAlchemy[aiosqlite]
