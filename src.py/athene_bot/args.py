@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from typing import get_type_hints
+from typing import get_type_hints, Type, TypeVar
+
+T = TypeVar('T')
 
 
 class Args:
-    def __init__(self, from_type: type):
+    def __init__(self, from_type: Type[T]):
         self.type = from_type
         self.parser = argparse.ArgumentParser(
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -33,5 +35,5 @@ class Args:
                 default=getattr(default, name)
             )
 
-    def parse_args(self) -> object:
+    def parse_args(self) -> T:
         return self.type(**vars(self.parser.parse_args()))

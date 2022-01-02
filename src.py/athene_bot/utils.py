@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import functools
 from typing import (
-    Any, AsyncIterator, AsyncIterable, Tuple, Callable, Union, Iterable,
+    Any, AsyncIterator,
+    AsyncIterable, Tuple,
+    Callable, Union, Iterable, TypeVar,
 )
 
 
@@ -21,13 +24,20 @@ def notf(x: Any) -> bool:
     return not x
 
 
-def compose(*functions):
-    def compose2(f, g):
+def compose(*functions: Callable[[Any], Any]) -> Any:
+    T1 = TypeVar('T1')
+    T2 = TypeVar('T2')
+    T3 = TypeVar('T3')
+
+    def compose2(
+        f: Callable[[T2], T3], g: Callable[[T1], T2]
+    ) -> Callable[[T1], T3]:
         return lambda x: f(g(x))
-    return __import__('functools').reduce(compose2, functions, lambda x: x)
+
+    return functools.reduce(compose2, functions, lambda x: x)
 
 
-def apply_attr(func: str, *args, **kwargs) -> Callable[[Any], Any]:
+def apply_attr(func: str, *args: Any, **kwargs: Any) -> Callable[[Any], Any]:
     return lambda x: getattr(x, func)(*args, **kwargs)
 
 
@@ -39,6 +49,6 @@ def attrget(attr: str) -> Any:
     return lambda x: getattr(x, attr)
 
 
-def collect(i: Iterable) -> None:
+def collect(i: Iterable[Any]) -> None:
     for _ in i:
         pass

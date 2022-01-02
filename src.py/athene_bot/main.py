@@ -6,12 +6,13 @@ import asyncio
 # import logging  # TODO: add logging
 from datetime import datetime
 
-
-from telethon import functions
+from telethon import functions  # type: ignore
 from telethon import TelegramClient
-from telethon.utils import parse_username
-from telethon.tl.types import Channel as TlChannel
-from telethon.errors import UserAlreadyParticipantError, RPCError
+from telethon.utils import parse_username  # type: ignore
+from telethon.tl.types import Channel as TlChannel  # type: ignore
+from telethon.errors import (  # type: ignore
+    UserAlreadyParticipantError, RPCError
+)
 
 from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
@@ -38,6 +39,7 @@ class Post(Base):
     id = Column(Integer, nullable=False, primary_key=True)
 
     channel_id = Column(
+        Integer,
         ForeignKey('channel.id'),
         nullable=False, primary_key=True
     )
@@ -51,6 +53,7 @@ class Subs(Base):
     subs = Column(Integer, nullable=False)
 
     channel_id = Column(
+        Integer,
         ForeignKey('channel.id'),
         nullable=False, primary_key=True
     )
@@ -64,11 +67,13 @@ class Views(Base):
     views = Column(Integer, nullable=False)
 
     post_id = Column(
+        Integer,
         ForeignKey('post.id'),
         nullable=False, primary_key=True
     )
 
     channel_id = Column(
+        Integer,
         ForeignKey('channel.id'),
         nullable=False, primary_key=True
     )
