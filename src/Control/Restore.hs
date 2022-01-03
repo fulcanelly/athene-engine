@@ -64,6 +64,11 @@ restoreScen [] bot = case bot of
   Free (Record next) -> restoreScen [] next
   _ -> bot 
 
+
+-- todo: make better restoring by utilizing binary search  
+-- ie if can't restore: load 1/2 * count and try again 
+-- if can then load 1/2 + 1/4 else 1/2 - 1/4 and try restore ...
+
 restoreScen whole @(e : rest) bot = case bot of
   Pure a -> throw $ CantRestore "can't be pure"
   Free sf -> case sf of 
