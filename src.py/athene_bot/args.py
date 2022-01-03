@@ -4,10 +4,11 @@ import enum
 import argparse
 from typing import (
     Annotated, Type, Union,
-    get_type_hints, get_origin,
+    get_type_hints, get_origin, get_args,
 )
 
 from .type_helpers import T
+from .utils import compose, notf, isf
 
 
 class ArgOpts(enum.Enum):
@@ -28,7 +29,15 @@ class Args:
             assert get_origin(t) is Annotated, \
                 f'{self.type.__name__}.{name} should have Annotated type hint'
 
-            typ, *_ = t.__args__
+            typ, *_ = get_args(t)
+            if get_origin(typ) is Union and type(None) in get_args(typ):
+                """
+                get actual type from Optional
+
+                NOTE: Optional[T] is alias for Union[T, None]
+                """
+                typ = next(filter(compose(notf, isf(None)), get_args(typ)))
+
             hlp, *metadata = t.__metadata__
 
             args = list()

@@ -24,6 +24,10 @@ def notf(x: Any) -> bool:
     return not x
 
 
+def isf(x: Any) -> Callable[[Any], bool]:
+    return lambda y: y is x
+
+
 def compose(*functions: Callable[[Any], Any]) -> Any:
     T1 = TypeVar('T1')
     T2 = TypeVar('T2')
