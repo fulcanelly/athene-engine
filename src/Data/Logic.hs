@@ -247,7 +247,20 @@ branch `returnOn` word =
     returnIf (isTextMatchU word) branch do
         pure ()
 
-
+selectLanguage
+    = offerFew "Select language" do 
+        onText "🇬🇧" do
+            evalReply "Language set"
+            
+        onText "🇷🇺" do
+            evalReply "Russian not supported yet"
+            
+introduce = do
+    offerFew "What is it? Think about this bot as your personal channel adverts manager \n\n \
+    \It will help you find similar channels to work with \n\n  \
+    \Currently it's in testing mode so don't expect to much from it, good luck ;)" do 
+        onText "Ok" do pure ()  
+    
 lobby :: Scenario ()
 lobby = do
     have <- checkIsHavePost
@@ -256,12 +269,18 @@ lobby = do
             post -- `returnOn` "Back"
         when have do 
             onText "find" findS 
-        onText "review" review
-    record
+     --   onText "review" review
     lobby
 
 -- hooks
 
+
+startBot = do 
+    expect Just
+    selectLanguage 
+    introduce
+    lobby
+    
 onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
     offerFew ("You got " <> show count <> " adv offers") do
