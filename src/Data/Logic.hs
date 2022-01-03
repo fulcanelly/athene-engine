@@ -44,23 +44,30 @@ buildTable :: HashBuilder a b -> Map String a
 buildTable (Pure next) = []
 buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
 
-offerFew :: String -> VoidHashBuilder (Scenario ()) -> Scenario ()
+offerFew :: String -> VoidHashBuilder (Scenario a) -> Scenario a
 offerFew greeting entry = do
     let table = buildTable entry
     eval $ SendWith $ sendTextNButtonsEntry greeting $ chunksOf 3 $ reverse (M.keys table)
     text <- expect anyText
-    runFoundOrWarn text table
+    runFoundOrWarnWithLoop text table (offerFew greeting entry)
 
-handleFew :: VoidHashBuilder (Scenario ()) -> Scenario ()
+handleFew :: VoidHashBuilder (Scenario a) -> Scenario a
 handleFew entry = do
     text <- expect anyText
-    runFoundOrWarn text $ buildTable entry
+    runFoundOrWarnWithLoop text (buildTable entry) (handleFew entry)
 
 
 runFoundOrWarn text table =
     case text `M.lookup` table of
         Nothing -> do
             evalReply "unknown option"
+        Just scen -> scen
+
+runFoundOrWarnWithLoop text table again =
+    case text `M.lookup` table of
+        Nothing -> do
+            evalReply "unknown option"
+            again
         Just scen -> scen
 
 wrongOptionMessage = "Wrong option, try again"
