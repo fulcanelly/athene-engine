@@ -16,6 +16,7 @@ import GHC.Stack
 import Data.Logic (lobby)
 import API.Telegram (ChatId)
 import Control.Exception (Exception, catch, throw)
+import Text.Pretty.Simple (pPrint)
 
 data SavedEvent
   = Intervened Intervention
@@ -91,3 +92,38 @@ restoreScen whole @(e : rest) bot = case bot of
       let (Posted post) = e in restoreScen rest (f post) 
 
     Record next -> restoreScen whole next
+
+
+
+restoreScenIO [] bot = case bot of 
+  Free (Eval cmd next) -> restoreScenIO [] next
+  Free (Record next) -> restoreScenIO [] next
+  _ -> pure bot 
+
+
+
+restoreScenIO whole @(e : rest) bot = do
+  putStrLn "=== got event: "
+  pPrint e
+  case bot of
+    Pure a -> throw $ CantRestore "can't be pure"
+    Free sf -> case sf of 
+      Expect f -> do 
+        let (Intervened (Update u)) = e in case f u of
+          Nothing -> throw $ CantRestore "???"
+          Just fr -> restoreScenIO rest fr 
+      
+      Eval com fr -> do 
+        case com of
+          SendWith me -> restoreScenIO rest fr
+          _ -> restoreScenIO whole fr
+      
+      ReturnIf p fr fr' -> throw $ CantRestore "can't be done"
+      
+      FindRandPost f -> 
+        let (Posted post) = e in restoreScenIO rest (f post) 
+
+      LoadMyPost f -> do
+        let (Posted post) = e in restoreScenIO rest (f post) 
+
+      Record next -> restoreScenIO whole next

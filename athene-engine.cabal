@@ -55,6 +55,7 @@ executable athene-engine
     FlexibleContexts
   build-depends:       
     base == 4.14.3.0,
+    pretty-simple,
     generic-lens,
     either,
     http-conduit,
