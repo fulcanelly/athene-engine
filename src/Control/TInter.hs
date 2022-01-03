@@ -55,7 +55,7 @@ import Data.Context
       Intervention(..),
       SharedState(..) )
 import Data.Favorites ( dislikePostBy, likePostBy )
-import Data.Logic ( lobby, onPostLike, startOnPostLike )
+import Data.Logic 
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Posts
@@ -170,10 +170,12 @@ newtype ScenarioStart
   = ScenarioStart (Scenario ())
 
 
-tryRestoreStateOrLobby scen = (scen `seq` pure scen)
-  `catch` (\(e :: SomeException) -> do
+tryRestoreStateOrLobby scen tasks chat = (scen `seq` pure scen)
+  `catch` \(e :: SomeException) -> do
     putStrLn $ "can't restore state for reason: " <> show e
-    pure lobby)
+    awaitIO $ tasks `runTransaction` cleanState chat
+
+    pure startBot
 
 deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> Scenario () -> IO ()
 deliverMail chatRem factory cdata inerv start = do
@@ -189,11 +191,13 @@ deliverMail chatRem factory cdata inerv start = do
       atomically $ writeTVar cdata $ (chat `M.insert` ctx) cdata_
 
       if null tasks 
-        then startScen ctx start
-        else do
-          scen <- tryRestoreStateOrLobby (restoreScen tasks lobby) 
-          startScen ctx scen 
+        then
+          startScen ctx start
 
+        else do
+          scen <- tryRestoreStateOrLobby (restoreScen tasks startBot) (sqlTasks ctx) chat
+          startScen ctx scen 
+      
       deliverMail chatRem factory cdata inerv start
 
       where startScen ctx = void . startNewScenario chatRem ctx 
@@ -216,7 +220,7 @@ handleAll state@SharedState {..} chats income = do
     let mailer = deliverMail chatRem context chats intervention
 
     case intervention of
-      Update {} -> mailer lobby
+      Update {} -> mailer startBot
       AdvOffers count _ -> mailer (startOnPostLike count)
       Stop -> putStrLn "stop! -- todo"
 
