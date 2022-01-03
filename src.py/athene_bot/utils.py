@@ -52,3 +52,7 @@ def attrget(attr: str) -> Any:
 def collect(i: Iterable[Any]) -> None:
     for _ in i:
         pass
+
+
+def no_nl(line: str) -> str:
+    return line[:-1] if line.endswith('\n') else line

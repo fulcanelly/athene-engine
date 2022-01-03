@@ -3,7 +3,6 @@
 
 import re
 import asyncio
-# import logging  # TODO: add logging
 from datetime import datetime
 
 from telethon import functions  # type: ignore
@@ -20,7 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from .args import Args
 from .config import Config
-from .utils import aenumerate
+from .log import get_logger
+from . import __pkg_name__ as name
+from .utils import aenumerate, no_nl
 
 
 PLUS_RE = re.compile(r'.*/\+([^/]+)$')
@@ -100,6 +101,13 @@ class Bot:
             f'sqlite+aiosqlite:///{quote(str(self.config.db))}'
         )
 
+        self.log = get_logger(
+            name,
+            file=self.config.log_file,
+            level=self.config.log_level,
+        )
+
+
     async def collect_channel(self, channel: TlChannel) -> None:
         channel = (await self.user(
             functions.channels.GetFullChannelRequest(channel)
@@ -116,7 +124,7 @@ class Bot:
             ))
 
             async for i, post in aenumerate(self.user.iter_messages(channel)):
-                if i >= self.config.last_nth:
+                if i >= self.config.n_posts:
                     break
 
                 await session.merge(Post(  # TODO: optimize
@@ -147,28 +155,33 @@ class Bot:
 
     async def run(self) -> None:
         await self.user.start()
+        self.log.info('%s started', self.user.__class__.__name__)
 
         async with self.sql.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
         while not False:  # TODO: optimize
             with self.config.channels.open() as fptr:
-                for channel in fptr:
+                for channel in map(no_nl, fptr):
                     if match := PLUS_RE.match(channel):
                         channel = f'https://t.me/joinchat/{match.group(1)}'
 
                     hash, is_invite = parse_username(channel)
                     if is_invite:
                         if not await self.try_join(hash):
+                            self.log.warning('failed to join to %r', channel)
                             continue
 
-                    channel = await self.user.get_entity(channel)
+                    chan = await self.user.get_entity(channel)
 
-                    if not isinstance(channel, TlChannel):
+                    if not isinstance(chan, TlChannel):
+                        self.log.warning('%r is not channel', channel)
                         continue
 
-                    await self.collect_channel(channel)
+                    self.log.info('collecting posts from %r', channel)
+                    await self.collect_channel(chan)
 
+            self.log.info('done, waiting %.2fs', self.config.interval)
             await asyncio.sleep(self.config.interval)
 
 
