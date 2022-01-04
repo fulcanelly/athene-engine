@@ -33,6 +33,10 @@ class Config:
         Optional[Path], 'also write logs to file', ArgOpts.no_short
     ] = None
 
+    log_no_stderr: Annotated[
+        bool, "don't log to stderr", ArgOpts.store_true, ArgOpts.no_short
+    ] = False
+
     db: Annotated[
         Path, 'database path'
     ] = field(

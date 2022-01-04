@@ -105,8 +105,8 @@ class Bot:
             name,
             file=self.config.log_file,
             level=self.config.log_level,
+            stderr=not self.config.log_no_stderr,
         )
-
 
     async def collect_channel(self, channel: TlChannel) -> None:
         channel = (await self.user(

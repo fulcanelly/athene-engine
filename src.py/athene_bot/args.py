@@ -14,6 +14,7 @@ from .utils import compose, notf, isf
 class ArgOpts(enum.Enum):
     no_long = enum.auto()
     no_short = enum.auto()
+    store_true = enum.auto()
 
 
 class Args:
@@ -39,6 +40,7 @@ class Args:
                 typ = next(filter(compose(notf, isf(None)), get_args(typ)))
 
             hlp, *metadata = t.__metadata__
+            store_true = ArgOpts.store_true in metadata
 
             args = list()
             if ArgOpts.no_short not in metadata and len(name) > 2:
@@ -47,13 +49,22 @@ class Args:
             if ArgOpts.no_short in metadata or ArgOpts.no_long not in metadata:
                 args.append(f'--{name.replace("_", "-")}')
 
-            self.parser.add_argument(
-                *args,
-                type=typ,
-                dest=name,
-                help=f'{hlp} (type: {self.type_name(typ)})',
-                default=getattr(default, name)
-            )
+            kwargs = {
+                'dest': name,
+                'help': (
+                    f'{hlp}'
+                    + ('' if store_true else f' (type: {self.type_name(typ)})')
+                ),
+                'default': getattr(default, name),
+            }
+
+            if store_true:
+                kwargs['action'] = 'store_true'
+
+            else:
+                kwargs['type'] = typ
+
+            self.parser.add_argument(*args, **kwargs)
 
     @staticmethod
     def type_name(typ: type) -> str:
