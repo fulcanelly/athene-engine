@@ -70,15 +70,15 @@ data ScenarioF next
     | ReturnIf (Update -> Bool) (Scenario next) (Scenario next)
     | FindRandPost (Maybe AdvPost -> next)
     | LoadMyPost (Maybe AdvPost -> next)
-    | Record next
+    | Clean Int next
 
 deriving instance Functor ScenarioF
 
 type Scenario = Free ScenarioF
 
 
-record :: Scenario ()
-record = liftF $ Record ()
+clean :: Int -> Scenario ()
+clean level = liftF $ Clean level ()
 
 eval :: Command -> Scenario ()
 eval cmd = liftF $ Eval cmd ()
