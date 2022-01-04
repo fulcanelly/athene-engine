@@ -200,7 +200,7 @@ post = do
             onText "Yes" do
                 pure ()
             onText "Back" do
-                pure ()
+                post
     onText_ text scenario = 
         onText text do 
             scenario 
