@@ -59,4 +59,4 @@ def collect(i: Iterable[Any]) -> None:
 
 
 def no_nl(line: str) -> str:
-    return line[:-1] if line.endswith('\n') else line
+    return no_nl(line[:-1]) if line.endswith('\n') else line

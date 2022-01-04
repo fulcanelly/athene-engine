@@ -14,7 +14,7 @@ ${VENV}:
 
 .PHONY: mypy
 mypy:
-	mypy ${SRC}
+	${VENV}/bin/mypy ${SRC}
 
 .PHONY: clean
 clean:
