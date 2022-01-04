@@ -13,15 +13,15 @@ from telethon.errors import (  # type: ignore
     UserAlreadyParticipantError, RPCError
 )
 
-from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, ForeignKey, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from .args import Args
 from .config import Config
 from .log import get_logger
 from . import __pkg_name__ as name
-from .utils import aenumerate, no_nl
+from .utils import aenumerate, no_nl, attrget, compose
 
 
 PLUS_RE = re.compile(r'.*/\+([^/]+)$')
@@ -123,15 +123,29 @@ class Bot:
                 subs=channel.participants_count,
             ))
 
+            posts = list(map(
+                attrget('id'),
+                map(
+                    compose(next, iter),
+                    await session.execute(
+                        select(Post)
+                        .filter(Post.channel_id == channel.id)
+                        .order_by(Post.id.desc())
+                        .limit(self.config.n_posts)
+                    )
+                )
+            ))
+
             async for i, post in aenumerate(self.user.iter_messages(channel)):
                 if i >= self.config.n_posts:
                     break
 
-                await session.merge(Post(  # TODO: optimize
-                    id=post.id,
-                    channel_id=channel.id,
-                    timestamp=int(post.date.timestamp()),
-                ))
+                if post.id not in posts:
+                    session.add(Post(
+                        id=post.id,
+                        channel_id=channel.id,
+                        timestamp=int(post.date.timestamp()),
+                    ))
 
                 if post.views is not None:
                     session.add(Views(
