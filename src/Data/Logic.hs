@@ -200,6 +200,7 @@ post = do
     delete = do 
         offerFew "Are you sure you want to delete your post ?" do
             onText "Yes" do
+                eval DeleteMyPost
                 pure True
             onText "Back" do
                 pure False

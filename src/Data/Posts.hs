@@ -59,6 +59,9 @@ updatePost Post{..} = do
     where
     updateEntry = (_title, _fileId, _link, _userId)
 
+deletePost :: Int -> SqlRequest ()
+deletePost id = execute "DELETE FROM channel_posts WHERE user_id = ?" (Only id)
+
 createNewPost :: AdvPost -> SqlRequest ()
 createNewPost Post{..} =
     execute "INSERT INTO channel_posts VALUES(?, ?, ?, ?)" postEntry where

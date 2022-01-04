@@ -36,13 +36,6 @@ import Control.Concurrent.STM.TSem (signalTSem, waitTSem)
 import Control.Database ( runTransaction )
 import Control.Exception (SomeException (SomeException), catch, throw, finally, PatternMatchFail (PatternMatchFail), catches)
 import Control.FreeState
-    ( catchReturn,
-      sendText,
-      Command(UpdatePost, SendWith, CreatePost, LikePost, DislikePost),
-      MessageEntry(method, args),
-      ReturnE(ReturnE),
-      Scenario,
-      ScenarioF(..) )
 import Control.Monad (forever, join, void)
 import Control.Monad.Free (foldFree, liftF)
 import Control.Notifications ()
@@ -54,7 +47,7 @@ import Data.Context
       Context(..),
       Intervention(..),
       SharedState(..) )
-import Data.Favorites ( dislikePostBy, likePostBy )
+import Data.Favorites
 import Data.Logic 
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe)
@@ -107,6 +100,10 @@ iterScenarioTg ctx@Context {..} scen =
       UpdatePost post ->
         void $ awaitIO $ sqlTasks `runTransaction` updatePost post
 
+      DeleteMyPost -> 
+        awaitIO $ sqlTasks `runTransaction` do
+          deletePost chat
+          deletePersonFavorites chat
       _ -> error "unimplemented behavior"
     pure next
 

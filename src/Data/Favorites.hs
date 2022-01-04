@@ -46,3 +46,8 @@ createLikeEntry subject userId state = execute "INSERT INTO channel_favorites VA
 getRateBy :: ChatId -> ChatId -> SqlRequest (Maybe Favorite)
 getRateBy subject userId =
     listToMaybe <$> query "SELECT * FROM channel_favorites WHERE subject = ? AND user_id = ?" (subject, userId)
+
+
+deletePersonFavorites :: ChatId -> SqlRequest ()
+deletePersonFavorites userId = 
+    execute "DELETE FROM channel_favorites WHERE user_id = ?" (Only userId)

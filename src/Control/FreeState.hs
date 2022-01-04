@@ -61,6 +61,7 @@ data Command
     | UpdatePost AdvPost
     | LikePost AdvPost
     | DislikePost AdvPost
+    | DeleteMyPost
 
 data DBRequest
 
