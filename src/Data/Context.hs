@@ -10,6 +10,7 @@ import Data.Aeson (ToJSON, FromJSON)
 import GHC.Generics (Generic)
 import Control.Concurrent.STM.TSem (TSem)
 import Control.FreeState (Command)
+import Data.IORef (IORef)
 
 
 type Target = ChatId 
@@ -54,11 +55,13 @@ data Context
 
         , lastMessage :: Maybe Command
         , lastInteraction :: Maybe Int
+
+        , level :: IORef Int
     }
 
 
-newContext :: SharedState -> ChatId -> STM Context
-newContext shared chatId = Context
+newContext :: IORef Int -> SharedState -> ChatId -> STM Context
+newContext level shared chatId = Context
     <$> newTChan <*> pure (execT shared)
     <*> pure (tasks shared) <*> newTChan
     <*> pure chatId
@@ -66,5 +69,6 @@ newContext shared chatId = Context
     <*> pure (notifications shared)
     <*> pure Nothing 
     <*> pure Nothing 
+    <*> pure level
 
 type ChatData = Map ChatId Context

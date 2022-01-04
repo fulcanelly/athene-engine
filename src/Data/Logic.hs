@@ -266,6 +266,7 @@ introduce = do
     
 lobby :: Scenario ()
 lobby = do
+    clean 1
     have <- checkIsHavePost
     offerFew "Main menu" do
         onText "post" do
