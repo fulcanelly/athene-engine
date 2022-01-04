@@ -148,7 +148,9 @@ post = do
         if exists then do
             onText_ "edit" edit 
             onText_ "show" show
-            onText "delete" delete
+            onText "delete" do 
+                res <- delete 
+                if res then pure () else post 
         else
             onText_ "create" create
         onText "back" $ pure ()
@@ -198,9 +200,9 @@ post = do
     delete = do 
         offerFew "Are you sure you want to delete your post ?" do
             onText "Yes" do
-                pure ()
+                pure True
             onText "Back" do
-                post
+                pure False
     onText_ text scenario = 
         onText text do 
             scenario 
