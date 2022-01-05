@@ -221,7 +221,7 @@ findS = do
     maybe onAbsent onPresent post
     where
     onAbsent = do
-        offerFew "There are no more post /any post yet :/" do 
+        offerFew "There are no more post / any post yet :/" do 
             onText "Back" $ pure ()
             onText "Try again" findS
             
@@ -261,7 +261,7 @@ selectLanguage
             
 introduce = do
     offerFew "What is it? Think about this bot as your personal channel adverts manager \n\n \
-    \It will help you find similar channels to work with \n\n  \
+    \It will help you find similar channels to work with \n\n\
     \Currently it's in testing mode so don't expect to much from it, good luck ;)" do 
         onText "Ok" do pure ()  
     
