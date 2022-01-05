@@ -42,7 +42,7 @@ data PhotoEntry = PhotoEntry {
     , width :: Int
     , height :: Int
     }
-    deriving stock (Show, Generic)
+    deriving stock (Show, Generic, Eq)
     deriving anyclass (ToJSON, FromJSON)
 
 data From = From {
@@ -51,7 +51,7 @@ data From = From {
         , username :: Maybe String
         , is_bot :: Bool
     }
-    deriving stock (Show, Generic)
+    deriving stock (Show, Generic, Eq)
     deriving anyclass (ToJSON, FromJSON)
 
 data Message = Message {
@@ -61,7 +61,7 @@ data Message = Message {
         , text :: Maybe String
         , photo :: Maybe [PhotoEntry]
     }
-    deriving stock (Show, Generic)
+    deriving stock (Show, Generic, Eq)
     deriving anyclass (ToJSON, FromJSON)
 
 data Update =
@@ -69,7 +69,7 @@ data Update =
         update_id :: Integer
         , message :: Maybe Message
     }
-    deriving stock (Show, Generic)
+    deriving stock (Show, Generic, Eq)
     deriving anyclass (ToJSON, FromJSON)
 
 

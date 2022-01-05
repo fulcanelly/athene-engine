@@ -28,7 +28,7 @@ data Intervention
     = Update Update
     | AdvOffers OffersCount ChatId 
     | Stop
-    deriving (Show, ToJSON, Generic, FromJSON)
+    deriving (Show, ToJSON, Generic, FromJSON, Eq)
 
 data SharedState = SharedState {
         tasks :: SQLnTasks

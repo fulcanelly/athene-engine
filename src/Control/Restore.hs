@@ -22,7 +22,7 @@ data SavedEvent
   = Intervened Intervention
   | Posted (Maybe AdvPost)
   | Sent
-  deriving (Show, Generic, ToJSON, FromJSON)
+  deriving (Show, Generic, ToJSON, FromJSON, Eq)
 
 instance FromRow SavedEvent where
   fromRow = fromJust . decode <$> field
