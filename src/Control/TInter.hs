@@ -34,7 +34,7 @@ import Control.Concurrent.STM
   )
 import Control.Concurrent.STM.TSem (signalTSem, waitTSem)
 import Control.Database ( runTransaction )
-import Control.Exception (SomeException (SomeException), catch, throw, finally, PatternMatchFail (PatternMatchFail), catches)
+import Control.Exception (SomeException (SomeException), catch, throw, finally, PatternMatchFail (PatternMatchFail), catches, evaluate)
 import Control.FreeState
 import Control.Monad (forever, join, void)
 import Control.Monad.Free (foldFree, liftF)
@@ -54,6 +54,9 @@ import Data.Maybe (fromJust, fromMaybe)
 import Data.Posts
 import Database.SQLite.Simple ()
 import GHC.Conc (atomically, readTVar, writeTVar)
+import Data.IORef (newIORef, readIORef, writeIORef)
+import Control.Restore (Restored(level_))
+import Data.Time (getCurrentTime, diffUTCTime)
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
@@ -84,7 +87,8 @@ iterScenarioTg ctx@Context {..} scen =
     case cmd of
       SendWith entry -> do
         answerWith ctx entry
-        awaitIO $ sqlTasks `runTransaction` do chat `addEvent` Sent 
+        level' <- readIORef level
+        awaitIO $ sqlTasks `runTransaction` do chat `addEvent` level' $ Sent 
         
       CreatePost post ->
         awaitIO $ sqlTasks `runTransaction` createNewPost post
@@ -109,7 +113,8 @@ iterScenarioTg ctx@Context {..} scen =
 
   expect @(Expect pred) ->  do
     intervention <- atomically $ readTChan mailbox
-    sqlTasks `runTransaction` do chat `addEvent_` intervention
+    level' <- readIORef level
+    sqlTasks `runTransaction` do chat `addEvent_` level' $ intervention
 
     case intervention of
       Update up -> handleUpdate ctx up expect
@@ -129,14 +134,16 @@ iterScenarioTg ctx@Context {..} scen =
   LoadMyPost func -> do
     sqlTasks `runTransaction` getSpecificAt chat `awaitIOAndThen` do storeEventAndApply func
 
-  Record what -> do
-    awaitIO $ sqlTasks `runTransaction` cleanState chat
+  Clean nlevel what -> do
+    awaitIO $ sqlTasks `runTransaction` cleanState nlevel chat
+    writeIORef level nlevel
     pure what
 
   where 
     storeEventAndApply :: IsEvent e => (e -> b) -> e -> IO b 
     storeEventAndApply func event = do 
-      sqlTasks `runTransaction` do chat `addEvent_` event
+      level' <- readIORef level
+      sqlTasks `runTransaction` do chat `addEvent_` level' $ event 
       pure $ func event
         
 returnContext :: Context -> (Update -> Bool) -> Context
@@ -167,15 +174,15 @@ newtype ScenarioStart
   = ScenarioStart (Scenario ())
 
 
-tryRestoreStateOrLobby scen tasks chat = (scen `seq` pure scen)
+tryRestoreStateOrLobby scen tasks chat = evaluate scen
   `catch` \(e :: SomeException) -> do
     putStrLn $ "can't restore state for reason: " <> show e
-    awaitIO $ tasks `runTransaction` cleanState chat
+    awaitIO $ tasks `runTransaction` cleanState 0 chat
 
-    pure startBot
+    pure $ Restored startBot 0 
 
-deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> Scenario () -> IO ()
-deliverMail chatRem factory cdata inerv start = do
+deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> IO ()
+deliverMail chatRem factory cdata inerv  = do
   cdata_ <- readTVarIO cdata
   let chat = chatOf inerv
 
@@ -189,13 +196,19 @@ deliverMail chatRem factory cdata inerv start = do
 
       if null tasks 
         then
-          startScen ctx start
+          startScen ctx startBot
 
         else do
-          scen <- tryRestoreStateOrLobby (restoreScen tasks startBot) (sqlTasks ctx) chat
-          startScen ctx scen 
-      
-      deliverMail chatRem factory cdata inerv start
+          startTime <- getCurrentTime
+          
+          state <- tryRestoreStateOrLobby (restoreScen tasks 0 startBot) (sqlTasks ctx) chat
+          writeIORef (level ctx) (level_ state)
+          startScen ctx (scenario state)
+          
+          diff <- flip diffUTCTime startTime <$> getCurrentTime
+          putStrLn $ "restoring took " <> show diff  
+
+      deliverMail chatRem factory cdata inerv 
 
       where startScen ctx = void . startNewScenario chatRem ctx 
 
@@ -210,17 +223,14 @@ handleAll state@SharedState {..} chats income = do
     intervention <- atomically do
       waitTSem chatSem
       readTChan income
-
-    let context = newContext state $ chatOf intervention
+    
+    ref <- newIORef 0
+    let context = newContext ref state $ chatOf intervention
     let chatRem = removeChatSync chats $ chatOf intervention
 
-    let mailer = deliverMail chatRem context chats intervention
+    deliverMail chatRem context chats intervention
 
-    case intervention of
-      Update {} -> mailer startBot
-      AdvOffers count _ -> mailer (startOnPostLike count)
-      Stop -> putStrLn "stop! -- todo"
-
+  
     atomically $ signalTSem chatSem
 
 setupChatDataS :: IO (TVar ChatData)

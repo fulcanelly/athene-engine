@@ -44,10 +44,17 @@ buildTable :: HashBuilder a b -> Map String a
 buildTable (Pure next) = []
 buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
 
+
+sendWithKb :: String -> [[String]] -> Scenario ()
+sendWithKb text = eval . SendWith . sendTextNButtonsEntry text
+
+genKb :: Map e a -> [[e]]
+genKb = chunksOf 3 . reverse . M.keys 
+
 offerFew :: String -> VoidHashBuilder (Scenario a) -> Scenario a
 offerFew greeting entry = do
     let table = buildTable entry
-    eval $ SendWith $ sendTextNButtonsEntry greeting $ chunksOf 3 $ reverse (M.keys table)
+    sendWithKb greeting $ genKb table
     text <- expect anyText
     runFoundOrWarnWithLoop text table (offerFew greeting entry)
 
@@ -57,16 +64,10 @@ handleFew entry = do
     runFoundOrWarnWithLoop text (buildTable entry) (handleFew entry)
 
 
-runFoundOrWarn text table =
-    case text `M.lookup` table of
-        Nothing -> do
-            evalReply "unknown option"
-        Just scen -> scen
-
 runFoundOrWarnWithLoop text table again =
     case text `M.lookup` table of
         Nothing -> do
-            evalReply "unknown option"
+            sendWithKb "Unknown option" $genKb table
             again
         Just scen -> scen
 
@@ -266,6 +267,7 @@ introduce = do
     
 lobby :: Scenario ()
 lobby = do
+    clean 1
     have <- checkIsHavePost
     offerFew "Main menu" do
         onText "post" do
