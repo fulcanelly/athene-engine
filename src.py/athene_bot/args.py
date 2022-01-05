@@ -2,13 +2,16 @@
 
 import enum
 import argparse
+from functools import partial
+from operator import is_, not_
+
 from typing import (
     Annotated, Type, Union,
     get_type_hints, get_origin, get_args,
 )
 
+from .utils import compose
 from .type_helpers import T
-from .utils import compose, notf, isf
 
 
 class ArgOpts(enum.Enum):
@@ -37,7 +40,10 @@ class Args:
 
                 NOTE: Optional[T] is alias for Union[T, None]
                 """
-                typ = next(filter(compose(notf, isf(None)), get_args(typ)))
+                typ = next(filter(
+                    compose(not_, partial(is_, None)),
+                    get_args(typ)
+                ))
 
             hlp, *metadata = t.__metadata__
             store_true = ArgOpts.store_true in metadata

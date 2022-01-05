@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import functools
+from operator import is_, not_
 from typing import (
     Any, AsyncIterator,
     AsyncIterable, Tuple,
@@ -17,15 +18,7 @@ async def aenumerate(
 
 
 def is_some(x: Any) -> bool:
-    return x is not None
-
-
-def notf(x: Any) -> bool:
-    return not x
-
-
-def isf(x: Any) -> Callable[[Any], bool]:
-    return lambda y: y is x
+    return not_(is_(x, None))
 
 
 def compose(*functions: Callable[[Any], Any]) -> Any:
