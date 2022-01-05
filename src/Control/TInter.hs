@@ -180,8 +180,8 @@ tryRestoreStateOrLobby scen tasks chat = evaluate scen
 
     pure $ Restored startBot 0 
 
-deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> Scenario () -> IO ()
-deliverMail chatRem factory cdata inerv start = do
+deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> IO ()
+deliverMail chatRem factory cdata inerv  = do
   cdata_ <- readTVarIO cdata
   let chat = chatOf inerv
 
@@ -195,14 +195,14 @@ deliverMail chatRem factory cdata inerv start = do
 
       if null tasks 
         then
-          startScen ctx start
+          startScen ctx startBot
 
         else do
           state <- tryRestoreStateOrLobby (restoreScen tasks 0 startBot) (sqlTasks ctx) chat
           writeIORef (level ctx) (level_ state)
           startScen ctx (scenario state)
       
-      deliverMail chatRem factory cdata inerv start
+      deliverMail chatRem factory cdata inerv 
 
       where startScen ctx = void . startNewScenario chatRem ctx 
 
@@ -222,13 +222,9 @@ handleAll state@SharedState {..} chats income = do
     let context = newContext ref state $ chatOf intervention
     let chatRem = removeChatSync chats $ chatOf intervention
 
-    let mailer = deliverMail chatRem context chats intervention
+    deliverMail chatRem context chats intervention
 
-    case intervention of
-      Update {} -> mailer startBot
-      AdvOffers count _ -> mailer (startOnPostLike count)
-      Stop -> putStrLn "stop! -- todo"
-
+  
     atomically $ signalTSem chatSem
 
 setupChatDataS :: IO (TVar ChatData)

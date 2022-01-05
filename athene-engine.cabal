@@ -40,7 +40,8 @@ executable athene-engine
     Data.Favorites,
     Control.Notifications,
     Data.Context,
-    Control.Restore 
+    Control.Restore,
+    Data.Reviews
   default-extensions:
     OverloadedStrings,
     StandaloneDeriving,
