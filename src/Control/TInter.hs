@@ -56,6 +56,7 @@ import Database.SQLite.Simple ()
 import GHC.Conc (atomically, readTVar, writeTVar)
 import Data.IORef (newIORef, readIORef, writeIORef)
 import Control.Restore (Restored(level_))
+import Data.Time (getCurrentTime, diffUTCTime)
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
@@ -198,10 +199,15 @@ deliverMail chatRem factory cdata inerv  = do
           startScen ctx startBot
 
         else do
+          startTime <- getCurrentTime
+          
           state <- tryRestoreStateOrLobby (restoreScen tasks 0 startBot) (sqlTasks ctx) chat
           writeIORef (level ctx) (level_ state)
           startScen ctx (scenario state)
-      
+          
+          diff <- flip diffUTCTime startTime <$> getCurrentTime
+          putStrLn $ "restoring took " <> show diff  
+
       deliverMail chatRem factory cdata inerv 
 
       where startScen ctx = void . startNewScenario chatRem ctx 
