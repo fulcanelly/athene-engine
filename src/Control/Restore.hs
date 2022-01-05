@@ -13,7 +13,7 @@ import GHC.Generics
 import Data.Aeson
 import Database.SQLite.Simple hiding (execute_, execute, query)
 import GHC.Stack
-import Data.Logic (lobby)
+import Data.Logic (lobby, onPostLike)
 import API.Telegram (ChatId)
 import Control.Exception (Exception, catch, throw)
 import Text.Pretty.Simple (pPrint)
@@ -83,10 +83,17 @@ restoreScen whole @(e : rest) level bot = case bot of
   Pure a -> throw $ CantRestore "can't be pure"
   Free sf -> case sf of 
     Expect f -> do 
-      let (Intervened (Update u)) = e in case f u of
-        Nothing -> throw $ CantRestore "???"
-        Just fr -> restoreScen rest level fr 
-    
+      let (Intervened int) = e
+      case int of 
+        Update up -> case f up of
+          Nothing -> throw $ CantRestore "???"
+          Just fr -> restoreScen rest level fr 
+        AdvOffers n i -> do
+          --todo: writeIORef lastBeforeSwitch <$> readIORef lastSend
+          let adjusted = onPostLike bot n
+          restoreScen rest level adjusted
+        Stop -> throw $ CantRestore "Not implemented yet"
+
     Eval com fr -> do 
       case com of
         SendWith me -> restoreScen rest level fr
