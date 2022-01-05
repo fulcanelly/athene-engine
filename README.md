@@ -2,7 +2,7 @@
 the telegram bot for auto mutual channel advertising
 
 ### todo list
-  - [ ] state restoring
+  - [x] state restoring
   - [ ] lazy i18
   - [ ] notification queue
   - [ ] post reviewing
