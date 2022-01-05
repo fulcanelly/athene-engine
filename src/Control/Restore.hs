@@ -54,7 +54,7 @@ addEvent_ chat level event = addEvent chat level (toEvent event)
 loadState :: ChatId -> SqlRequest [SavedEvent]
 loadState chat = query "SELECT blob FROM event_storage WHERE chat = ?" (Only chat)
 
-cleanState :: ChatId -> Level -> SqlRequest ()
+cleanState :: Level -> ChatId -> SqlRequest ()
 cleanState level chat = execute "DELETE FROM event_storage WHERE chat = ? AND level >= ?" (chat, level)
 
 newtype CantRestore = CantRestore String
