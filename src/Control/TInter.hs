@@ -94,7 +94,7 @@ iterScenarioTg ctx@Context {..} scen =
         awaitIO $ sqlTasks `runTransaction` createNewPost post
          
       LikePost Post {..} -> do
-        void $ sqlTasks `runTransaction` do _userId `likePostBy` chat
+        sqlTasks `runTransaction` do _userId `likePostBy` chat
         (ctx `notifyAboutLike` chat) _userId
 
       DislikePost Post {..} -> do
@@ -181,16 +181,15 @@ tryRestoreStateOrLobby scen tasks chat = evaluate scen
 
     pure $ Restored startBot 0 
 
-deliverMail :: ChatRemover -> STM Context -> TVar ChatData -> Intervention -> IO ()
-deliverMail chatRem factory cdata inerv  = do
+deliverMail :: ChatRemover -> Context -> TVar ChatData -> Intervention -> IO ()
+deliverMail chatRem ctx cdata inerv  = do
   cdata_ <- readTVarIO cdata
   let chat = chatOf inerv
 
   case chat `M.lookup` cdata_ of
-    Just ctx -> do
-      atomically $ writeTChan (mailbox ctx) inerv
+    Just ctx' -> do
+      atomically $ writeTChan (mailbox ctx') inerv
     Nothing -> do
-      ctx <- atomically factory
       tasks <- awaitIO $ sqlTasks ctx `runTransaction` loadState chat
       atomically $ writeTVar cdata $ (chat `M.insert` ctx) cdata_
 
@@ -208,7 +207,7 @@ deliverMail chatRem factory cdata inerv  = do
           diff <- flip diffUTCTime startTime <$> getCurrentTime
           putStrLn $ "restoring took " <> show diff  
 
-      deliverMail chatRem factory cdata inerv 
+      deliverMail chatRem ctx cdata inerv 
 
       where startScen ctx = void . startNewScenario chatRem ctx 
 
@@ -224,8 +223,7 @@ handleAll state@SharedState {..} chats income = do
       waitTSem chatSem
       readTChan income
     
-    ref <- newIORef 0
-    let context = newContext ref state $ chatOf intervention
+    context <- newContext state $ chatOf intervention
     let chatRem = removeChatSync chats $ chatOf intervention
 
     deliverMail chatRem context chats intervention
