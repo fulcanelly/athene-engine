@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE RecordWildCards #-}
 module Control.Restore where
 
 import Control.FreeState
@@ -17,6 +18,10 @@ import Data.Logic (lobby, onPostLike)
 import API.Telegram (ChatId)
 import Control.Exception (Exception, catch, throw)
 import Text.Pretty.Simple (pPrint)
+import Database.SQLite.Simple.FromField (FromField (fromField))
+import Database.SQLite.Simple.Ok (Ok(Ok))
+import Data.ByteString.Lazy (ByteString)
+import Control.Monad
 
 data SavedEvent
   = Intervened Intervention
@@ -26,6 +31,27 @@ data SavedEvent
 
 instance FromRow SavedEvent where
   fromRow = fromJust . decode <$> field
+
+
+type Time = Int
+
+data RawTimedEvent
+  = RawTimedEvent { 
+    raw :: ByteString
+    , time' :: Time
+  }
+
+data TimedEvent 
+  = TimedEvent { 
+    event :: SavedEvent
+    , time :: Time 
+  }
+
+instance FromRow RawTimedEvent where
+  fromRow = RawTimedEvent <$> field <*> field
+
+fromRaw :: RawTimedEvent -> TimedEvent
+fromRaw RawTimedEvent {..} = TimedEvent (fromJust $ decode raw) time'
 
 type Level = Int
 
@@ -44,6 +70,15 @@ setupDB = do
   \ level INTEGER, \
   \ time DATETIME DEFAULT CURRENT_TIMESTAMP)"
 
+
+loadRawStateWithTime :: ChatId -> SqlRequest [RawTimedEvent]
+loadRawStateWithTime chat =  query "SELECT blob, time FROM event_storage WHERE chat = ?" (Only chat)
+
+
+loadStateWithTime :: ChatId -> SqlRequest [TimedEvent]
+loadStateWithTime x = do
+  map fromRaw <$> loadRawStateWithTime x
+
 addEvent :: ChatId -> Level -> SavedEvent -> SqlRequest ()
 addEvent chat level event =
   execute "INSERT INTO event_storage(chat, blob, level) VALUES(?, ?, ?)" (chat, encode event, level)
@@ -53,6 +88,9 @@ addEvent_ chat level event = addEvent chat level (toEvent event)
 
 loadState :: ChatId -> SqlRequest [SavedEvent]
 loadState chat = query "SELECT blob FROM event_storage WHERE chat = ?" (Only chat)
+
+cleanAllAfterMoment :: Time -> ChatId -> SqlRequest ()
+cleanAllAfterMoment chat moment = execute "DELETE FROM event_storage WHERE chat = ? AND time >= ?" (chat, moment)
 
 cleanState :: Level -> ChatId -> SqlRequest ()
 cleanState level chat = execute "DELETE FROM event_storage WHERE chat = ? AND level >= ?" (chat, level)
