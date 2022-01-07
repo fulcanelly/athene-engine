@@ -211,9 +211,9 @@ post = do
             post
 
 
-showPost :: AdvPost -> String -> Scenario ()
-showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
-    where caption = _title <> "\n\n" <> _link <> msg
+showPost :: AdvPost -> Scenario ()
+showPost Post{..} = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
+    where caption = _title <> "\n\n" <> _link 
 
 findS :: Scenario ()
 findS = do
@@ -227,7 +227,8 @@ findS = do
             
 
     onPresent post = do
-        showPost post "\n\n\nWhat you think about this channel ?"
+        showPost post
+        evalReply "What you think about this channel ?"
         handleFew do 
             onText "Like" do   
                 eval $ LikePost post
@@ -237,9 +238,28 @@ findS = do
                 findS
             onText "Back" $ pure ()
 
+loadOffer = undefined
 
 review = do
-    pure ()
+    offer <- loadOffer  
+    showPost offer
+    evalReply "This channel suggest mutual offer"
+
+    offerFew "What to do ?" do
+        onText "Accept" do 
+            setupAdv
+        onText "Reject" do 
+            pure ()
+
+    where 
+    setupAdv = do
+        offerFew "Select type" do
+            onText "One-off" do 
+                pure ()
+            onText "Long-term" do 
+                pure ()
+
+        pure ()
 
 isTextMatchU :: String -> Update -> Bool
 isTextMatchU text update = case textU update of
@@ -288,17 +308,9 @@ startBot = do
     
 onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
-    offerFew ("You got " <> show count <> " adv offers") do
+    offerFew "You got adv offers" do
         onText "Show" do
             evalReply "showing"
             review
         onText "Latter" do pure ()    
     continue
-
-
-startOnPostLike count = do
-    offerFew ("You got " <> show count <> " adv offers") do
-        onText "Show" do
-            evalReply "showing"
-        onText "Latter" do pure ()
-    lobby
