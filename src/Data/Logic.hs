@@ -52,8 +52,10 @@ buildTable (Free (PutValue k v next)) = MO.fromList [(k,v)] <>| buildTable next
 sendWithKb :: String -> [[String]] -> Scenario ()
 sendWithKb text = eval . SendWith . sendTextNButtonsEntry text
 
+
 genKb :: MO.OMap e a -> [[e]]
-genKb = chunksOf 3 . reverse . MU.keys . MO.toMap 
+genKb = chunksOf 3 . keys . assocs 
+    where keys = map fst
 
 offerFew :: String -> VoidHashBuilder (Scenario a) -> Scenario a
 offerFew greeting entry = do
