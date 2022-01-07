@@ -141,6 +141,12 @@ sendWithButtons a = eval . SendWith . sendTextNButtonsEntry a
 
 -- actual behavior 
 
+onTextP :: String -> b -> VoidHashBuilder (Scenario b)
+onTextP name val = onText name do pure val 
+
+onTextV :: String -> VoidHashBuilder (Scenario ())
+onTextV name = onTextP name ()
+
 post :: Scenario ()
 post = do
     exists <- checkIsHavePost
@@ -153,7 +159,7 @@ post = do
                 if res then pure () else post 
         else
             onText_ "Создать" create
-        onText "Назад" $ pure ()
+        onTextV "Назад"
     where
     create = do
         evalReply "Введите заголовок"
@@ -169,13 +175,12 @@ post = do
         evalReply "Все! теперь ваш пост создан"
 
     show = do
-        Post{..} <- fromJust <$> loadMyPost
-        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n" <> _link <> "\n\nЧто делать?") [["Редактировать"],["Назад"]]
-        handleFew do
+        post <- fromJust <$> loadMyPost
+        showPost post
+        offerFew "Так выглядит ваш пост" do
             onText "Редактировать" do
                 edit
-            onText "Назад" do
-                pure ()
+            onTextV "Назад"
     edit = do
         original @Post {..} <- fromJust <$> loadMyPost
 
@@ -202,17 +207,16 @@ post = do
             onText "Да" do
                 eval DeleteMyPost
                 pure True
-            onText "Назад" do
-                pure False
+            "Назад" `onTextP` do False
     onText_ text scenario = 
         onText text do 
             scenario 
             post
 
 
-showPost :: AdvPost -> String -> Scenario ()
-showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Лайк", "Дизлайк"], ["Назад"]]
-    where caption = _title <> "\n\n" <> _link <> msg
+showPost :: AdvPost -> Scenario ()
+showPost Post{..} = eval $ SendWith $ F.sendPhoto _fileId caption []
+    where caption = _title <> "\n\n" <> _link 
 
 findS :: Scenario ()
 findS = do
@@ -221,24 +225,42 @@ findS = do
     where
     onAbsent = do
         offerFew "Постов больше или пока нет :/" do 
-            onText "Назад" $ pure ()
+            onTextV "Назад"
             onText "Попробовать еще раз" findS
             
-
     onPresent post = do
-        showPost post "\n\n\nЧто вы думаете про этот канал ?"
-        handleFew do 
+        showPost post
+        offerFew "Что вы думаете про этот канал ?" do 
             onText "Нравится" do   
                 eval $ LikePost post
                 findS
-            onText "Ненравится" do
+            onText "Плохо" do
                 eval $ DislikePost post
                 findS
-            onText "Назад" $ pure ()
+            onTextV "Назад"
 
+loadOffer = undefined
 
 review = do
-    pure ()
+    offer <- loadOffer  
+    showPost offer
+    evalReply "This channel suggest mutual offer"
+
+    offerFew "What to do ?" do
+        onText "Accept" do 
+            setupAdv
+        onText "Reject" do 
+            pure ()
+
+    where 
+    setupAdv = do
+        offerFew "Select type" do
+            onText "One-off" do 
+                pure ()
+            onText "Long-term" do 
+                pure ()
+
+        pure ()
 
 isTextMatchU :: String -> Update -> Bool
 isTextMatchU text update = case textU update of
@@ -263,7 +285,7 @@ introduce = do
     offerFew "What is it? Think about this bot as your personal channel adverts manager \n\n \
     \It will help you find similar channels to work with \n\n\
     \Currently it's in testing mode so don't expect to much from it, good luck ;)" do 
-        onText "Ok" do pure ()  
+        onTextV "Ok"  
     
 lobby :: Scenario ()
 lobby = do
@@ -288,17 +310,9 @@ startBot = do
     
 onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
-    offerFew ("You got " <> show count <> " adv offers") do
+    offerFew "You got adv offers" do
         onText "Show" do
             evalReply "showing"
             review
         onText "Latter" do pure ()    
     continue
-
-
-startOnPostLike count = do
-    offerFew ("You got " <> show count <> " adv offers") do
-        onText "Show" do
-            evalReply "showing"
-        onText "Latter" do pure ()
-    lobby

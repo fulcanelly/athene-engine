@@ -2,17 +2,17 @@
 
 import logging
 from pathlib import Path
+from operator import not_
 from functools import partial
-from dataclasses import dataclass, field
-
 from typing import Annotated, Optional
+from dataclasses import dataclass, field
 
 import xdg
 
 from .log import LogLevel
 from .args import ArgOpts
 from . import __pkg_name__ as name
-from .utils import apply_attr, compose, notf, instanceof, attrget, collect
+from .utils import apply_attr, compose, instanceof, attrget, collect
 
 
 @dataclass
@@ -66,7 +66,7 @@ class Config:
                         map(
                             partial(getattr, self),
                             filter(
-                                compose(notf, apply_attr('startswith', '_')),
+                                compose(not_, apply_attr('startswith', '_')),
                                 dir(self)
                             )
                         )
