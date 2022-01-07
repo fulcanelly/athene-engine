@@ -20,9 +20,12 @@ import Control.Lens ( (^?), (^.), _Just, Ixed (ix), (<.), At (at), ixAt, makeLen
 import Control.Applicative
 import Control.Monad.Free.Church (foldF)
 import Control.Monad (when, void, forever)
-import Data.Map as M
 import GHC.Exts (IsList)
-import qualified Data.Map as M
+import Data.Map.Ordered 
+import qualified Data.Map.Ordered as MO
+import qualified Data.Map as MU
+import Data.Map.Ordered (fromList)
+
 import Data.List.Split (chunksOf)
 import Prelude as P
 
@@ -37,19 +40,20 @@ data HashBuilderF a next = PutValue String a next
 
 type HashBuilder a = Free (HashBuilderF a)
 
+
 putVal ::String -> a -> HashBuilder a ()
 putVal k v = liftF $ PutValue k v ()
 
-buildTable :: HashBuilder a b -> Map String a
-buildTable (Pure next) = []
-buildTable (Free (PutValue k v next)) = [(k,v)] `M.union` buildTable next
+buildTable :: HashBuilder a b -> MO.OMap String a
+buildTable (Pure next) = MO.fromList []
+buildTable (Free (PutValue k v next)) = MO.fromList [(k,v)] <>| buildTable next
 
 
 sendWithKb :: String -> [[String]] -> Scenario ()
 sendWithKb text = eval . SendWith . sendTextNButtonsEntry text
 
-genKb :: Map e a -> [[e]]
-genKb = chunksOf 3 . reverse . M.keys 
+genKb :: MO.OMap e a -> [[e]]
+genKb = chunksOf 3 . reverse . MU.keys . MO.toMap 
 
 offerFew :: String -> VoidHashBuilder (Scenario a) -> Scenario a
 offerFew greeting entry = do
@@ -65,7 +69,7 @@ handleFew entry = do
 
 
 runFoundOrWarnWithLoop text table again =
-    case text `M.lookup` table of
+    case text `MO.lookup` table of
         Nothing -> do
             sendWithKb "Не знаю о чем вы" $genKb table
             again
@@ -142,7 +146,7 @@ sendWithButtons a = eval . SendWith . sendTextNButtonsEntry a
 -- actual behavior 
 
 onTextP :: String -> b -> VoidHashBuilder (Scenario b)
-onTextP name val = onText name do pure val 
+onTextP name val = onText name do pure val
 
 onTextV :: String -> VoidHashBuilder (Scenario ())
 onTextV name = onTextP name ()
@@ -216,7 +220,7 @@ post = do
 
 showPost :: AdvPost -> Scenario ()
 showPost Post{..} = eval $ SendWith $ F.sendPhoto _fileId caption []
-    where caption = _title <> "\n\n" <> _link 
+    where caption = _title <> "\n\n" <> _link
 
 findS :: Scenario ()
 findS = do
@@ -242,22 +246,22 @@ findS = do
 loadOffer = undefined
 
 review = do
-    offer <- loadOffer  
+    offer <- loadOffer
     showPost offer
     evalReply "This channel suggest mutual offer"
 
     offerFew "What to do ?" do
-        onText "Accept" do 
+        onText "Accept" do
             setupAdv
-        onText "Reject" do 
+        onText "Reject" do
             pure ()
 
-    where 
+    where
     setupAdv = do
         offerFew "Select type" do
-            onText "One-off" do 
+            onText "One-off" do
                 pure ()
-            onText "Long-term" do 
+            onText "Long-term" do
                 pure ()
 
         pure ()
@@ -284,9 +288,9 @@ selectLanguage
 introduce = do
     offerFew "What is it? Think about this bot as your personal channel adverts manager \n\n \
     \It will help you find similar channels to work with \n\n\
-    \Currently it's in testing mode so don't expect to much from it, good luck ;)" do 
-        onTextV "Ok"  
-    
+    \Currently it's in testing mode so don't expect to much from it, good luck ;)" do
+        onTextV "Ok"
+
 lobby :: Scenario ()
 lobby = do
     clean 1
@@ -302,17 +306,17 @@ lobby = do
 -- hooks
 
 
-startBot = do 
+startBot = do
     expect Just
-    selectLanguage 
+    selectLanguage
     introduce
     lobby
-    
+
 onPostLike :: Scenario a -> Int -> Scenario a
 onPostLike continue count = do
     offerFew "You got adv offers" do
         onText "Show" do
             evalReply "showing"
             review
-        onText "Latter" do pure ()    
+        onText "Latter" do pure ()
     continue
