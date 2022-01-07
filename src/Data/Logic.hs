@@ -176,9 +176,9 @@ post = do
         evalReply "Ok! your post have created"
 
     show = do
-        Post{..} <- fromJust <$> loadMyPost
-        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n" <> _link <> "\n\nWhat to do ?") [["Edit"],["Back"]]
-        handleFew do
+        post <- fromJust <$> loadMyPost
+        showPost post
+        offerFew "What to do ?" do
             onText "Edit" do
                 edit
             onTextV "Back"
@@ -216,7 +216,7 @@ post = do
 
 
 showPost :: AdvPost -> Scenario ()
-showPost Post{..} = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
+showPost Post{..} = eval $ SendWith $ F.sendPhoto _fileId caption []
     where caption = _title <> "\n\n" <> _link 
 
 findS :: Scenario ()
@@ -232,8 +232,7 @@ findS = do
 
     onPresent post = do
         showPost post
-        evalReply "What you think about this channel ?"
-        handleFew do 
+        offerFew "What you think about this channel ?" do 
             onText "Like" do   
                 eval $ LikePost post
                 findS
