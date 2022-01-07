@@ -64,6 +64,7 @@ executable athene-engine
     uri-encode,
     vector,
     containers,
+    ordered-containers,
     split,
     free,
     lens,
