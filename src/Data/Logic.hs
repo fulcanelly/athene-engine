@@ -67,11 +67,10 @@ handleFew entry = do
 runFoundOrWarnWithLoop text table again =
     case text `M.lookup` table of
         Nothing -> do
-            sendWithKb "Unknown option" $genKb table
+            sendWithKb "Не знаю о чем вы" $genKb table
             again
         Just scen -> scen
 
-wrongOptionMessage = "Wrong option, try again"
 
 
 data MapperBuilderF mapper next
@@ -99,11 +98,11 @@ expectFew list = do
 
 
 constrExpectText :: Scenario String
-constrExpectText = anyText `expectOrReply` "Text expected"
+constrExpectText = anyText `expectOrReply` "Ожидался текст"
 
 
 constrExpectPhoto :: Scenario String
-constrExpectPhoto = anyPhoto `expectOrReply` "Photo expected"
+constrExpectPhoto = anyPhoto `expectOrReply` "Ожидалось фото"
 
 expectOrReply :: (Update -> Maybe a) -> String -> Scenario a
 expectOrReply pred failMsg = do
@@ -145,37 +144,37 @@ sendWithButtons a = eval . SendWith . sendTextNButtonsEntry a
 post :: Scenario ()
 post = do
     exists <- checkIsHavePost
-    offerFew "It's your post settings" do
+    offerFew "Что сделать с вашим рекламным постом?" do
         if exists then do
-            onText_ "edit" edit 
-            onText_ "show" show
-            onText "delete" do 
+            onText_ "Редактировать" edit 
+            onText_ "Показать" show
+            onText "Удалить" do 
                 res <- delete 
                 if res then pure () else post 
         else
-            onText_ "create" create
-        onText "back" $ pure ()
+            onText_ "Создать" create
+        onText "Назад" $ pure ()
     where
     create = do
-        evalReply "please enter title"
-        (title, chatId) <- anyTextWithChatId `expectOrReply` "Text expected"
+        evalReply "Введите заголовок"
+        (title, chatId) <- anyTextWithChatId `expectOrReply` "Ожидался текст"
 
-        evalReply "please send heading photo"
+        evalReply "Отправьте фото поста"
         fileId <- constrExpectPhoto
 
-        evalReply "now send join link to you channel "
+        evalReply "Теперь отправтье ссылку на ваш канал"
         link <- constrExpectText
 
         eval $ CreatePost $ Post title chatId fileId link
-        evalReply "Ok! your post have created"
+        evalReply "Все! теперь ваш пост создан"
 
     show = do
         Post{..} <- fromJust <$> loadMyPost
-        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n" <> _link <> "\n\nWhat to do ?") [["Edit"],["Back"]]
+        eval $ SendWith $ F.sendPhoto _fileId (_title <> "\n" <> _link <> "\n\nЧто делать?") [["Редактировать"],["Назад"]]
         handleFew do
-            onText "Edit" do
+            onText "Редактировать" do
                 edit
-            onText "Back" do
+            onText "Назад" do
                 pure ()
     edit = do
         original @Post {..} <- fromJust <$> loadMyPost
@@ -186,24 +185,24 @@ post = do
              --   pure $ Just ""
 
             prompt (set title) do
-                sendWithButtons "change title" [[_title]]
+                sendWithButtons "Введите новый заголовок" [[_title]]
                 expect anyText
 
             prompt (set link) do
-                sendWithButtons "change link" [[_link]]
+                sendWithButtons "Введите новую ссылку" [[_link]]
                 expect anyText
 
         let updated = update original
 
         when (updated /= original) (eval $ UpdatePost updated)
 
-        evalReply "you post have updated"
+        evalReply "Ваш пост был обновлен"
     delete = do 
-        offerFew "Are you sure you want to delete your post ?" do
-            onText "Yes" do
+        offerFew "Вы уверены что хотите удалить ваш пост ?" do
+            onText "Да" do
                 eval DeleteMyPost
                 pure True
-            onText "Back" do
+            onText "Назад" do
                 pure False
     onText_ text scenario = 
         onText text do 
@@ -212,7 +211,7 @@ post = do
 
 
 showPost :: AdvPost -> String -> Scenario ()
-showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Like", "Dislike"], ["Back"]]
+showPost Post{..} msg = eval $ SendWith $ F.sendPhoto _fileId caption [["Лайк", "Дизлайк"], ["Назад"]]
     where caption = _title <> "\n\n" <> _link <> msg
 
 findS :: Scenario ()
@@ -221,21 +220,21 @@ findS = do
     maybe onAbsent onPresent post
     where
     onAbsent = do
-        offerFew "There are no more post / any post yet :/" do 
-            onText "Back" $ pure ()
-            onText "Try again" findS
+        offerFew "Постов больше или пока нет :/" do 
+            onText "Назад" $ pure ()
+            onText "Попробовать еще раз" findS
             
 
     onPresent post = do
-        showPost post "\n\n\nWhat you think about this channel ?"
+        showPost post "\n\n\nЧто вы думаете про этот канал ?"
         handleFew do 
-            onText "Like" do   
+            onText "Нравится" do   
                 eval $ LikePost post
                 findS
-            onText "Dislike" do
+            onText "Ненравится" do
                 eval $ DislikePost post
                 findS
-            onText "Back" $ pure ()
+            onText "Назад" $ pure ()
 
 
 review = do
@@ -252,12 +251,13 @@ branch `returnOn` word =
         pure ()
 
 selectLanguage
-    = offerFew "Select language" do 
+    = offerFew "Выберите язык" do 
         onText "🇬🇧" do
-            evalReply "Language set"
-            
+            evalReply "Английски пока не поддерживается"
+
         onText "🇷🇺" do
-            evalReply "Russian not supported yet"
+            evalReply "Язык выбран"
+
             
 introduce = do
     offerFew "What is it? Think about this bot as your personal channel adverts manager \n\n \
@@ -269,11 +269,11 @@ lobby :: Scenario ()
 lobby = do
     clean 1
     have <- checkIsHavePost
-    offerFew "Main menu" do
-        onText "post" do
+    offerFew "Главное меню" do
+        onText "Мой пост" do
             post -- `returnOn` "Back"
         when have do 
-            onText "find" findS 
+            onText "Найти" findS 
      --   onText "review" review
     lobby
 
