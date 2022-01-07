@@ -142,6 +142,12 @@ sendWithButtons a = eval . SendWith . sendTextNButtonsEntry a
 
 -- actual behavior 
 
+onTextP :: String -> b -> VoidHashBuilder (Scenario b)
+onTextP name val = onText name do pure val 
+
+onTextV :: String -> VoidHashBuilder (Scenario ())
+onTextV name = onTextP name ()
+
 post :: Scenario ()
 post = do
     exists <- checkIsHavePost
@@ -154,7 +160,7 @@ post = do
                 if res then pure () else post 
         else
             onText_ "create" create
-        onText "back" $ pure ()
+        onTextV "back"
     where
     create = do
         evalReply "please enter title"
@@ -175,8 +181,7 @@ post = do
         handleFew do
             onText "Edit" do
                 edit
-            onText "Back" do
-                pure ()
+            onTextV "Back"
     edit = do
         original @Post {..} <- fromJust <$> loadMyPost
 
@@ -203,8 +208,7 @@ post = do
             onText "Yes" do
                 eval DeleteMyPost
                 pure True
-            onText "Back" do
-                pure False
+            "Back" `onTextP` do False
     onText_ text scenario = 
         onText text do 
             scenario 
@@ -222,7 +226,7 @@ findS = do
     where
     onAbsent = do
         offerFew "There are no more post / any post yet :/" do 
-            onText "Back" $ pure ()
+            onTextV "Back"
             onText "Try again" findS
             
 
@@ -236,7 +240,7 @@ findS = do
             onText "Dislike" do
                 eval $ DislikePost post
                 findS
-            onText "Back" $ pure ()
+            onTextV "Back"
 
 loadOffer = undefined
 
@@ -283,7 +287,7 @@ introduce = do
     offerFew "What is it? Think about this bot as your personal channel adverts manager \n\n \
     \It will help you find similar channels to work with \n\n\
     \Currently it's in testing mode so don't expect to much from it, good luck ;)" do 
-        onText "Ok" do pure ()  
+        onTextV "Ok"  
     
 lobby :: Scenario ()
 lobby = do
