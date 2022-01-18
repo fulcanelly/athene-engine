@@ -1,11 +1,14 @@
-(import re)
 (import asyncio)
+(import operator [not-])
+(import functools [partial])
 (import datetime [datetime])
+(import dataclasses [dataclass])
+(import typing [List Union Optional cast])
 
+(import telethon.errors   [RPCError])
 (import telethon.utils    [parse-username])
-(import telethon.tl.types [Channel :as TlChannel])
 (import telethon          [TelegramClient functions])
-(import telethon.errors   [UserAlreadyParticipantError RPCError])
+(import telethon.tl.types [Channel :as TlChannel ChatInviteAlready ChatInvite])
 
 
 (import sqlalchemy.ext.declarative [declarative-base])
@@ -16,15 +19,14 @@
 (import .args   [Args])
 (import .config [Config])
 (import .log    [get-logger])
-(import .utils  [no-nl aenumerate compose])
+(import .server [Server ServerHandler ServerHandlerResponse ResponseStatus])
+(import .utils  [no-nl aenumerate compose strip comment?])
 
 (import . [__appname__ :as name])
 
 (require .macros *)
 
-(setv
-  PLUS-RE (. re (compile r".*/\+([^/]+)$"))
-  Base (declarative-base))
+(setv Base (declarative-base))
 
 (defclass Channel [Base]
   (setv __tablename__ "channel")
@@ -61,6 +63,13 @@
                 :nullable False :primary_key True)
     timestamp  (Integer :nullable False :primary_key True)))
 
+#@(dataclass
+    (defclass Channel? []
+      (^bool valid)
+      (^(of Optional str) private)
+      "hash of private channel or None"
+      (^(of Optional TlChannel) channel)))
+
 (defclass Bot []
   (setv
     API-ID 1082434
@@ -82,7 +91,15 @@
                 name
                 :file (. self config log-file)
                 :level (. self config log-level)
-                :stderr (not (. self config log-no-stderr)))))
+                :stderr (not (. self config log-no-stderr)))
+     self.server (Server (. self config))))
+
+  #@(staticmethod
+      (defn ^str +>channel [^str channel]
+        (.replace
+          channel
+          "/+" "/joinchat/" 1)))
+
 
   (defn/a ^None collect-channel [self ^TlChannel channel]
     (let [channel (. (await
@@ -135,18 +152,51 @@
 
               None))))))
 
-  (defn/a ^bool try-join [self ^str hash]
+  (defn/a ^(of Optional TlChannel) join [self ^str hash]
     (try
-      (await
-        (.user
-          self
-          (. functions messages (ImportChatInviteRequest hash))))
+      (let [update (await
+                     (.user
+                       self
+                       (. functions messages (ImportChatInviteRequest hash))))]
+        (next (iter (. update chats))))
 
-      (except [UserAlreadyParticipantError] True)
-      (except [RPCError] False)
-      (else True)))
+      (except [RPCError])))
 
-  (defn/a ^None run [self]
+  (defn/a ^Channel? *walid-chan? [self ^str channel]
+    (let [channel (. self (+>channel channel))
+          invalid (Channel?
+                    :valid False
+                    :private None
+                    :channel None)]
+      (try
+        (let [(, hash invite?) (parse-username channel)]
+          (if invite?
+            (let [invite? (await (.user self (. functions messages
+                                              (CheckChatInviteRequest hash))))
+                  private (Channel?
+                            :valid True
+                            :private hash
+                            :channel None)]
+              (cond
+                [(isinstance invite? ChatInviteAlready)
+                 (doto private
+                   (setattr "channel" (. invite? chat)))]
+                [(isinstance invite? ChatInvite)
+                 private]
+                [True
+                 invalid]))
+
+            (let [chan (await (. self user (get-entity channel)))]
+              (if (isinstance chan TlChannel)
+                (Channel?
+                  :valid True
+                  :private None
+                  :channel chan)
+                invalid))))
+        (except [ValueError] invalid))))
+
+
+  (defn/a ^None run-bot [self]
     (await (. self user (start)))
     (. self log (info "%s started" (. self user __class__ __name__)))
 
@@ -155,35 +205,66 @@
 
     (loop ;; TODO: handle signal to reset interval
       (with [fptr (. self config channels (open))]
-        (for [channel (map no-nl fptr)]
-          (as-> (. PLUS-RE (match channel)) match
-            (when match
-              (setv channel f"https://t.me/joinchat/{(. match (group 1))}")))
-
-          (let [(, hash invite?) (parse-username channel)]
-            (when invite?
-              (unless (await (. self (try-join hash)))
-                (. self log (warning "failed to join to %r" channel))
-                (continue))))
-
-          (let [chan (await (. self user (get-entity channel)))]
-            (unless (isinstance chan TlChannel)
-              (. self log (warning "%r is not a channel" channel))
+        (for [channel ((compose (partial filter bool)
+                                (partial filter (compose not- comment?)))
+                       (map (compose strip no-nl) fptr))]
+          (let [chan (await (. self (*walid-chan? channel)))]
+            (when (not (. chan valid))
+              (. self log (warning "%r is invalid channel" channel))
               (continue))
 
+            (when (and (. chan private) (not (. chan channel)))
+              (let [channel* (await (. self (join (. chan private))))]
+                (unless channel*
+                  (. self log (warning "failed to join to %r" channel))
+                  (continue))
+                (. self log (debug "succesfully joined to %r" channel))
+                (setv chan.channel channel*)))
+
             (. self log (info "collecting posts from %r" channel))
-            (await (. self (collect-channel channel))))))
+            (await (. self (collect-channel (. chan channel)))))))
 
       (. self log (info "done, waiting %.2fs" (. self config interval)))
-      (await (. asyncio (sleep (. self config interval)))))))
+      (await (. asyncio (sleep (. self config interval))))))
+
+  (defn/a ^ServerHandlerResponse walid-channel? [self ^str channel]
+    (if (. self user (connected?))
+      (let [channel (no-nl channel)]
+        (. self log (debug "checking channel %s" channel))
+        (ServerHandlerResponse
+          :response (if (. (await (. self (*walid-chan? channel))) valid)
+                      "y"
+                      "n")
+          :status (. ResponseStatus ok)))
+
+      (ServerHandlerResponse
+        :response "bot is not running"
+        :status (. ResponseStatus err))))
+
+  (defn/a ^None run-server [self]
+    (defmacro server-handler [h]
+      `(do #*
+         (cast ;; FIXME: type check
+           (of Union (of List str) (of List ServerHandler))
+           [~(str h) (. self ~h)])))
+
+    (await
+      (.run
+        (doto (. self server)
+          (.add-handler (server-handler walid-channel?))))))
+
+  (defn ^None run [self]
+    (.run-forever
+      (doto (.get-event-loop asyncio)
+        (.create-task (.run-bot    self))
+        (.create-task (.run-server self))))))
 
 (defn ^None main []
   (try
-    (. asyncio
-       (get-event-loop)
-       (run-until-complete
-         (.run
-           (Bot (.parse-args
-                  (Args Config))))))
+    (.run
+      (Bot
+        (.parse-args
+          (Args Config))))
+    None
     (except [KeyboardInterrupt])))
 

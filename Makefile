@@ -38,10 +38,13 @@ ${TC_DIR}:
 	mkdir -vp -- $@
 
 ${TC_HY_DST}: ${TC_DIR}/%.py: ${SRC}/%.hy ${TC_DIR}
-	${BIN}/hy2py f -m $(call hy-mod-name,$<) $< > $@
+	@  src="$$(${BIN}/hy2py f -m $(call hy-mod-name,$<) $<)" \
+	&& printf '%s\n' "$${src}" > $@ \
+	&& printf '%s -> %s\n' '$<' '$@'
+
 
 ${TC_PY_DST}: ${TC_DIR}/%: ${SRC}/% ${TC_DIR}
-	cp -vf -- $< $@
+	@cp -vf -- $< $@
 
 .PHONY: clean-check
 clean-check:

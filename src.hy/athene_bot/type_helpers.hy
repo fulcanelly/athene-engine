@@ -1,6 +1,6 @@
 (import typing [Any TypeVar Union get_args cast])
 
-(require .macros *)
+(require .simple-macros *)
 
 (setv T (TypeVar "T"))
 

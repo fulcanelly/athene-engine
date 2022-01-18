@@ -1,9 +1,6 @@
 (import enum)
 (import argparse)
-(import functools [partial])
 (import typing [Annotated Type Union get_args get_origin get_type_hints])
-(import operator [is_ :as is*
-                  not_ :as not*])
 
 (import .utils [compose])
 (import .type-helpers [T])

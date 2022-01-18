@@ -1,3 +1,4 @@
+(import os)
 (import logging)
 (import pathlib [Path])
 (import functools [partial])
@@ -13,6 +14,21 @@
 
 
 (require .macros *)
+
+(defn ^Path get-tmpdir []
+  (let [env ["TMPDIR" "TEMP" "TMP"]]
+    (Path
+      (or
+        (try
+          (next
+            (iter
+              (filter
+                bool
+                (map
+                  (fn [e] (.getenv os e))
+                  env))))
+          (except [StopIteration]))
+        "/tmp"))))
 
 #@(dataclass
     (defclass Config []
@@ -38,23 +54,31 @@
 
         ^(of Annotated Path "database path")
         db
-         (field :default_factory
-                (fn [] (/ (.xdg_data_home xdg) name "database.sql")))
+         (field :default-factory
+                (fn [] (/ (.xdg-data-home xdg) name "database.sql")))
 
-        ^(of Annotated Path "path to telegram session file")
+        ^(of Annotated Path "path to telegram session file"
+             (. ArgOpts no-short))
         session
-         (field :default_factory
-                (fn [] (/ (.xdg_data_home xdg) name "bot.session")))
+         (field :default-factory
+                (fn [] (/ (.xdg-data-home xdg) name "bot.session")))
 
         ^(of Annotated Path "path to channels list")
         channels
-         (field :default_factory
-                (fn [] (/ (.xdg_config_home xdg) name "channels.list"))))
+         (field :default-factory
+                (fn [] (/ (.xdg-config-home xdg) name "channels.list")))
+
+        ^(of Annotated str "host to run server on"
+             (. ArgOpts no-short))
+        host "127.0.0.1"
+
+        ^(of Annotated int "port for server")
+        port 42069)
 
      (defn ^None check-paths [self]
        (collect
          (map
-           (attr-fn (mkdir :parents True :exist_ok True))
+           (attr-fn (mkdir :parents True :exist-ok True))
            (map
              (fn ^Path [^Path x] (. x parent))
              (filter

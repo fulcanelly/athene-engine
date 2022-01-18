@@ -1,12 +1,12 @@
 (import functools [reduce])
+(import itertools [islice])
 (import typing [Any AsyncIterator AsyncIterable
+                Iterator Iterable Sequence
                 Tuple Callable TypeVar Iterable Union])
 
+(import .type-helpers [T])
 
-(require .macros *)
-
-(defn ^bool is-some [^Any x]
-  (is-not x None))
+(require .simple-macros *)
 
 (defn ^str no-nl [^str line]
   (if (. line (endswith "\n"))
@@ -39,3 +39,19 @@
 (defn ^(of Callable [Any] bool) instanceof [^(of Union type (of Tuple type)) t]
   (fn [x] (isinstance x t)))
 
+(defn ^(of Iterator T) head [^(of Iterable T) it]
+  (islice it 1 None))
+
+(defn ^(of Iterator (of Sequence T)) chunks [^(of Sequence T) l ^int [size 2]]
+  (while l
+    (let [chunk (cut l size)]
+      (yield chunk))
+    (setv l (cut l size None))))
+
+(defn ^str strip [^str in*]
+  (-> in*
+    (.lstrip)
+    (.rstrip)))
+
+(defn ^bool comment? [^str in*]
+  (. in* (startswith "#")))
