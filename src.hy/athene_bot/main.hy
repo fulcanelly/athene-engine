@@ -102,7 +102,7 @@
                     :channel-id (. channel id)
                     :timestamp (int (. post date (timestamp))))))
 
-              (when (is-not None (. post views))
+              (when (not? None (. post views))
                 (.add
                   session
                   (Views

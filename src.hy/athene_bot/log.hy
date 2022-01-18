@@ -41,7 +41,7 @@
               stderr
               (.append (.StreamHandler logging))
 
-              (is-not None file)
+              (not? None file)
               (.append (. logging (FileHandler file))))]
 
         (.addHandler logger
