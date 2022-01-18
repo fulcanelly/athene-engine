@@ -51,6 +51,11 @@ responses:
 * `y` if channel is valid
 * `n` otherwise
 
+#### reload-channels-list
+reset interval and recollect statistics
+
+accept no arguments
+
 ### exaples
 ```sh
 echo 'valid-channel?@picbtw' | nc 127.0.0.1 42069
