@@ -3,7 +3,7 @@
 (import functools [partial])
 (import datetime [datetime])
 (import dataclasses [dataclass])
-(import typing [List Union Optional cast])
+(import typing [Any Optional Dict cast])
 
 (import telethon.errors   [RPCError])
 (import telethon.utils    [parse-username])
@@ -42,18 +42,20 @@
     (. self config (check-paths))
 
     (setv
-      self.user (TelegramClient
+      self.bot (TelegramClient
                   (str (. self config session))
                   (. self API-ID)
                   (. self API-HASH))
-     self.sql (create-async-engine
+     self.sql (create-async-engine  ;; TODO: optionally use postgres
                 f"sqlite+aiosqlite:///{(q* (str (. self config db)))}")
      self.log (get-logger
                 name
                 :file (. self config log-file)
                 :level (. self config log-level)
                 :stderr (not (. self config log-no-stderr)))
-     self.server (Server (. self config))))
+     self.server (Server (. self config))
+     self.loop-task (cast (of Optional (of (. asyncio Task) None)) None)
+     self.tasks (cast (of Dict int (of (. asyncio Task) None)) (dict))))
 
   #@(staticmethod
       (defn ^str +>channel [^str channel]
@@ -62,14 +64,17 @@
           "/+" "/joinchat/" 1)))
 
 
-  (defn/a ^None collect-channel [self ^TlChannel channel]
+  (defn/a ^None collect-channel [self ^TlChannel channel ^str from*]
+    (. self log (info "collecting posts from %r" from*))
     (let [channel (. (await
-                       (.user
+                       (.bot
                          self
                          (. functions channels
                             (GetFullChannelRequest channel))))
                      full-chat)
           now (int (. datetime (utcnow) (timestamp)))]
+      ;; FIX: work with session
+      ;; PERF: maybe collect all data at once and then write it all
       (with/a [session (AsyncSession (. self sql)) _ (.begin session)]
         (await (. session (merge (Channel :id (. channel id)))))
         (.add
@@ -92,7 +97,7 @@
                                (order-by (. Post id (desc)))
                                (limit (. self config n-posts)))))))]
           (for [:async (, i post)
-                (aenumerate (. self user (iter-messages channel)))]
+                (aenumerate (. self bot (iter-messages channel)))]
             (when (>= i (. self config n-posts))
               (when (not-in (. post id) posts)
                 (.add
@@ -116,7 +121,7 @@
   (defn/a ^(of Optional TlChannel) join [self ^str hash]
     (try
       (let [update (await
-                     (.user
+                     (.bot
                        self
                        (. functions messages (ImportChatInviteRequest hash))))]
         (next (iter (. update chats))))
@@ -132,7 +137,7 @@
       (try
         (let [(, hash invite?) (parse-username channel)]
           (if invite?
-            (let [invite? (await (.user self (. functions messages
+            (let [invite? (await (.bot self (. functions messages
                                               (CheckChatInviteRequest hash))))
                   private (Channel?
                             :valid True
@@ -147,7 +152,7 @@
                 [True
                  invalid]))
 
-            (let [chan (await (. self user (get-entity channel)))]
+            (let [chan (await (. self bot (get-entity channel)))]
               (if (isinstance chan TlChannel)
                 (Channel?
                   :valid True
@@ -156,15 +161,29 @@
                 invalid))))
         (except [ValueError] invalid))))
 
-
   (defn/a ^None run-bot [self]
-    (await (. self user (start)))
-    (. self log (info "%s started" (. self user __class__ __name__)))
+    (await (. self bot (start)))
+    (. self log (info "%s started" (. self bot __class__ __name__)))
 
     (with/a [conn (. self sql (begin))]
       (await (. conn (run-sync (. Base metadata create-all)))))
 
-    (loop ;; TODO: handle signal to reset interval
+    (.*run-loop self))
+
+  (defn ^None *run-loop [self ^bool [restart False]]
+    (when restart
+      (assert (. self loop-task))
+      (. self loop-task (cancel)))
+
+    (setv
+      self.loop-task
+      (.create-task
+        asyncio
+        (.run-loop self)
+        :name "bot-mainloop")))
+
+  (defn/a ^None run-loop [self]
+    (loop
       (with [fptr (. self config channels (open))]
         (for [channel ((compose (partial filter bool)
                                 (partial filter (compose not- comment?)))
@@ -182,33 +201,61 @@
                 (. self log (debug "succesfully joined to %r" channel))
                 (setv chan.channel channel*)))
 
-            (. self log (info "collecting posts from %r" channel))
-            (await (. self (collect-channel (. chan channel)))))))
+            (assert (. chan channel))
 
-      (. self log (info "done, waiting %.2fs" (. self config interval)))
+            (let [id (. chan channel id)
+                  task? (. self tasks (get id))]
+              (when (and task? (not (.done task?)))
+                (. self log (info "task for %r still running" channel))
+                (continue))
+
+              (. self tasks
+                 (update
+                   {id
+                    (.create-task
+                      asyncio
+                      (. self
+                         (collect-channel (. chan channel) channel))
+                      :name channel)}))))))
+
+      (. self log (info "waiting %.2fs" (. self config interval)))
       (await (. asyncio (sleep (. self config interval))))))
 
-  (defn/a ^ServerHandlerResponse valid-channel? [self ^str channel]
-    (if (. self user (connected?))
-      (let [channel (no-nl channel)]
-        (. self log (debug "checking channel %s" channel))
-        (ServerHandlerResponse
-          :response (if (. (await (. self (*valid-chan? channel))) valid)
-                      "y"
-                      "n")
-          :status (. ResponseStatus ok)))
-
+  (defn/a ^ServerHandlerResponse bot-connected?
+          [self ^ServerHandler f ^Any #* args ^Any #** kw]
+    (if (. self bot (connected?))
+      (await (f #* args #** kw))
       (ServerHandlerResponse
         :response "bot is not running"
         :status (. ResponseStatus err))))
 
+  (defn/a ^ServerHandlerResponse reload-channels-list [self ^str _]
+    (.*run-loop
+      self
+      :restart True)
+    ;; TODO: maybe response with done and running tasks?
+    (ServerHandlerResponse
+      :response "restarting"
+      :status (. ResponseStatus ok)))
+
+
+  (defn/a ^ServerHandlerResponse valid-channel? [self ^str channel]
+    (let [channel (no-nl channel)]
+      (. self log (debug "checking channel %s" channel))
+      (ServerHandlerResponse
+        :response (if (. (await (. self (*valid-chan? channel))) valid)
+                    "y"
+                    "n")
+        :status (. ResponseStatus ok))))
+
   (defn/a ^None run-server [self]
     (defmacro server-handler [h]
-      `(do #* (, ~(str h) (. self ~h))))
+      `(do #* (, ~(str h) (partial (. self bot-connected?) (. self ~h)))))
 
     (await
       (.run
         (doto (. self server)
+          (.add-handler (server-handler reload-channels-list))
           (.add-handler (server-handler valid-channel?))))))
 
   (defn ^None run [self]
