@@ -204,10 +204,7 @@
 
   (defn/a ^None run-server [self]
     (defmacro server-handler [h]
-      `(do #*
-         (cast ;; FIXME: type check
-           (of Union (of List str) (of List ServerHandler))
-           [~(str h) (. self ~h)])))
+      `(do #* (, ~(str h) (. self ~h))))
 
     (await
       (.run
