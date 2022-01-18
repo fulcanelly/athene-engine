@@ -10,58 +10,19 @@
 (import telethon          [TelegramClient functions])
 (import telethon.tl.types [Channel :as TlChannel ChatInviteAlready ChatInvite])
 
-
-(import sqlalchemy.ext.declarative [declarative-base])
-(import sqlalchemy.ext.asyncio     [AsyncSession create-async-engine])
-(import sqlalchemy                 [Column Integer ForeignKey select])
-
+(import sqlalchemy             [select])
+(import sqlalchemy.ext.asyncio [AsyncSession create-async-engine])
 
 (import .args   [Args])
 (import .config [Config])
 (import .log    [get-logger])
-(import .server [Server ServerHandler ServerHandlerResponse ResponseStatus])
+(import .sql    [Base Channel Post Subs Views])
 (import .utils  [no-nl aenumerate compose strip comment?])
+(import .server [Server ServerHandler ServerHandlerResponse ResponseStatus])
 
 (import . [__appname__ :as name])
 
 (require .macros *)
-
-(setv Base (declarative-base))
-
-(defclass Channel [Base]
-  (setv __tablename__ "channel")
-
-  (sqlalchemy-columns Column
-    id (Integer :nullable False :primary_key True)))
-
-(defclass Post [Base]
-  (setv __tablename__ "post")
-
-  (sqlalchemy-columns Column
-    id         (Integer :nullable False :primary_key True)
-    channel-id (Integer (ForeignKey "channel.id")
-                :nullable False :primary_key True)
-    timestamp  (Integer :nullable False)))
-
-(defclass Subs [Base]
-  (setv __tablename__ "subs")
-
-  (sqlalchemy-columns Column
-    subs       (Integer :nullable False)
-    channel-id (Integer (ForeignKey "channel.id")
-                :nullable False :primary_key True)
-    timestamp  (Integer :nullable False :primary_key True)))
-
-(defclass Views [Base]
-  (setv __tablename__ "views")
-
-  (sqlalchemy-columns Column
-    views      (Integer :nullable False)
-    post-id    (Integer (ForeignKey "post.id")
-                :nullable False :primary_key True)
-    channel-id (Integer (ForeignKey "channel.id")
-                :nullable False :primary_key True)
-    timestamp  (Integer :nullable False :primary_key True)))
 
 #@(dataclass
     (defclass Channel? []
