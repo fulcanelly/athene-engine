@@ -17,7 +17,7 @@ the telegram bot for auto mutual channel advertising
 
 # athene-py-bot
 
-### usage
+## usage
 ```sh
 python -m venv venv  # create virtual env
 
@@ -27,3 +27,39 @@ pip install -e .
 
 athene-py-bot -h
 ```
+
+## server
+
+by default listen on `127.0.0.1:42069`
+
+### request format
+any request is command name and argument next to it without any delimiter
+
+### response format
+* on success `OK:` and response text
+* on error `ERR:` and error description
+
+### available commands
+
+#### valid-channel?
+
+examples:
+* `valid-channel?@public_channel`
+* `valid-channel?https://t.me/+private_hash`
+
+responses:
+* `y` if channel is valid
+* `n` otherwise
+
+### exaples
+```sh
+echo 'valid-channel?@picbtw' | nc 127.0.0.1 42069
+# OK:y
+
+printf '%s' 'valid-channel?@pic' | nc 127.0.0.1 42069
+# OK:n
+
+echo 'wtf' | nc 127.0.0.1 42069
+# ERR:invlid request
+```
+
