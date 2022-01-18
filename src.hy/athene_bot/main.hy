@@ -123,7 +123,7 @@
 
       (except [RPCError])))
 
-  (defn/a ^Channel? *walid-chan? [self ^str channel]
+  (defn/a ^Channel? *valid-chan? [self ^str channel]
     (let [channel (. self (+>channel channel))
           invalid (Channel?
                     :valid False
@@ -169,7 +169,7 @@
         (for [channel ((compose (partial filter bool)
                                 (partial filter (compose not- comment?)))
                        (map (compose strip no-nl) fptr))]
-          (let [chan (await (. self (*walid-chan? channel)))]
+          (let [chan (await (. self (*valid-chan? channel)))]
             (when (not (. chan valid))
               (. self log (warning "%r is invalid channel" channel))
               (continue))
@@ -188,12 +188,12 @@
       (. self log (info "done, waiting %.2fs" (. self config interval)))
       (await (. asyncio (sleep (. self config interval))))))
 
-  (defn/a ^ServerHandlerResponse walid-channel? [self ^str channel]
+  (defn/a ^ServerHandlerResponse valid-channel? [self ^str channel]
     (if (. self user (connected?))
       (let [channel (no-nl channel)]
         (. self log (debug "checking channel %s" channel))
         (ServerHandlerResponse
-          :response (if (. (await (. self (*walid-chan? channel))) valid)
+          :response (if (. (await (. self (*valid-chan? channel))) valid)
                       "y"
                       "n")
           :status (. ResponseStatus ok)))
@@ -209,7 +209,7 @@
     (await
       (.run
         (doto (. self server)
-          (.add-handler (server-handler walid-channel?))))))
+          (.add-handler (server-handler valid-channel?))))))
 
   (defn ^None run [self]
     (.run-forever
