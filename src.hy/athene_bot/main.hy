@@ -4,7 +4,7 @@
 (import functools [partial])
 (import datetime [datetime])
 (import dataclasses [dataclass])
-(import typing [Any Optional Dict cast])
+(import typing [Any Optional List Dict cast])
 
 (import telethon.errors   [RPCError])
 (import telethon.utils    [parse-username])
@@ -80,9 +80,8 @@
                             (GetFullChannelRequest channel))))
                      full-chat)
           now (int (. datetime (utcnow) (timestamp)))]
-      ;; FIX: work with session
-      ;; PERF: maybe collect all data at once and then write it all
       (with/a [session (AsyncSession (. self sql)) _ (.begin session)]
+        ;; SESSION: add channel id and get posts ids
         (await (. session (merge (Channel :id (. channel id)))))
         (.add
           session
@@ -91,39 +90,58 @@
             :channel-id (. channel id)
             :subs (. channel participants-count)))
 
-        (let [posts (list
-                      (map
-                        (compose next iter)
-                        (await
-                          (.execute
-                            session
-                            (. (select Post)
-                               (filter (=
-                                        (. Post channel-id)
-                                        (. channel id)))
-                               (order-by (. Post id (desc)))
-                               (limit (. self config n-posts)))))))]
-          (for [:async (, i post)
-                (aenumerate (. self bot (iter-messages channel)))]
-            (when (>= i (. self config n-posts))
-              (when (not-in (. post id) posts)
-                (.add
-                  session
-                  (Post
-                    :id (. post id)
-                    :channel-id (. channel id)
-                    :timestamp (int (. post date (timestamp))))))
+        (setv
+          ^(of List int)
+          sql-posts
+          (list
+            (map
+              (fn ^int [^Post p]
+                (let [id (. p id)]
+                  (assert (not? id None))
+                  id))
+              (map
+               (compose next iter)
+               (await
+                 (.execute
+                   session
+                   (. (select Post)
+                      (filter (=
+                               (. Post channel-id)
+                               (. channel id)))
+                      (order-by (. Post id (desc)))
+                      (limit (. self config n-posts))))))))))
 
-              (when (not? None (. post views))
-                (.add
-                  session
-                  (Views
-                    :timestamp now
-                    :post-id (. post id)
-                    :views (. post views)
-                    :channel-id (. channel id))))
+      (setv
+        tg-posts
+        (await
+          (.collect
+           (. self bot
+              (iter-messages
+                channel
+                :limit (. self config n-posts))))))
 
-              None))))))
+      (with/a [session (AsyncSession (. self sql)) _ (.begin session)]
+        ;; SESSION: write info about posts
+        (for [post tg-posts]
+          (when (not-in (. post id) sql-posts)
+            (.add
+              session
+              (Post
+                :id (. post id)
+                :channel-id (. channel id)
+                :timestamp (int (. post date (timestamp))))))
+
+          (when (not? None (. post views))
+            (.add
+              session
+              (Views
+                :timestamp now
+                :post-id (. post id)
+                :views (. post views)
+                :channel-id (. channel id)))))))
+
+    (. self log (debug "collecting from %r done" from*))
+    None)
 
   (defn/a ^(of Optional TlChannel) join [self ^str hash]
     (try
