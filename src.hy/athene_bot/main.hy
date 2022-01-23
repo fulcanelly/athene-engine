@@ -16,12 +16,10 @@
 
 (import .args   [Args])
 (import .config [Config])
-(import .log    [get-logger])
+(import .log    [get-logger get-handlers])
 (import .sql    [Base Channel Post Subs Views])
 (import .utils  [no-nl aenumerate compose strip comment?])
 (import .server [Server ServerHandler ServerHandlerResponse ResponseStatus])
-
-(import . [__appname__ :as name])
 
 (require .macros *)
 
@@ -43,10 +41,18 @@
     (. self config (check-paths))
 
     (when (. self config full-debug)
-      (.basicConfig logging :level (. logging DEBUG))
-      (setv  ;; TODO: maybe add ability to write to file?
-        self.config.log-level.value
-        (. logging DEBUG)))
+      (.basicConfig
+        logging
+        :force True
+        :level (. logging DEBUG)
+        :handlers
+          (get-handlers
+            :stderr (not (. self config log-no-stderr))
+            :file (. self config log-file)))
+      (setv
+        self.config.log-level.value (. logging DEBUG)
+        self.config.log-file        None
+        self.config.log-no-stderr   True))
 
     (setv
       self.bot (TelegramClient
@@ -56,7 +62,7 @@
      self.sql (create-async-engine  ;; TODO: optionally use postgres
                 f"sqlite+aiosqlite:///{(q* (str (. self config db)))}")
      self.log (get-logger
-                name
+                __name__
                 :file (. self config log-file)
                 :level (. self config log-level)
                 :stderr (not (. self config log-no-stderr)))

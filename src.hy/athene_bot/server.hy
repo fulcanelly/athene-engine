@@ -28,7 +28,7 @@
       self.handlers (cast (of Dict str ServerHandler) (dict))
       self.config config
       self.log (get-logger
-                 (. self __class__ __name__)
+                 __name__
                  :file (. self config log-file)
                  :level (. self config log-level)
                  :stderr (not (. self config log-no-stderr)))))

@@ -23,6 +23,19 @@
      (defn ^None value [self ^LogLevelT value]
        (setv self._value (to LogLevelT value)))))
 
+(defn ^(of List (. logging Handler)) get-handlers
+    [^bool stderr ^(of Optional Path) file]
+  (doto-when
+    (cast
+      (of List (. logging Handler))
+      (list))
+
+    stderr
+    (.append (.StreamHandler logging))
+
+    (not? None file)
+    (.append (. logging (FileHandler file)))))
+
 (defn ^(. logging Logger) get-logger
     [^str                 name
      ^LogLevel            [level (LogLevel (. logging INFO))]
@@ -32,18 +45,7 @@
   (doto (.getLogger logging name)
     (.setLevel (. level value))
     ((fn ^None [^(. logging Logger) logger]
-      (for [handler
-            (doto-when
-              (cast
-                (of List (. logging Handler))
-                (list))
-
-              stderr
-              (.append (.StreamHandler logging))
-
-              (not? None file)
-              (.append (. logging (FileHandler file))))]
-
+      (for [handler (get-handlers stderr file)]
         (.addHandler logger
           (doto handler
             (.setLevel (. level value))
