@@ -40,6 +40,11 @@
         ^(of Annotated float "delay in seconds between stat collections")
         interval (* 60 60)
 
+        ^(of Annotated bool "enable debugging for all modules"
+             (. ArgOpts store-true)
+             (. ArgOpts no-short))
+        full-debug False
+
         ^(of Annotated LogLevel "log level")
         log-level (. logging (getLevelName (. logging INFO)))
 

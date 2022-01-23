@@ -1,4 +1,5 @@
 (import asyncio)
+(import logging)
 (import operator [not-])
 (import functools [partial])
 (import datetime [datetime])
@@ -40,6 +41,12 @@
     (import urllib.parse [quote :as q*])
     (setv self.config config)
     (. self config (check-paths))
+
+    (when (. self config full-debug)
+      (.basicConfig logging :level (. logging DEBUG))
+      (setv  ;; TODO: maybe add ability to write to file?
+        self.config.log-level.value
+        (. logging DEBUG)))
 
     (setv
       self.bot (TelegramClient
