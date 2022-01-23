@@ -31,7 +31,7 @@
 
         (let [(, typ #* _) (get_args t)]
           (when (and
-                  (is Union (get_origin type))
+                  (is Union (get_origin typ))
                   (in (type None) (get_args typ)))
             (setv
               typ
