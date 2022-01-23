@@ -261,13 +261,14 @@
         :status (. ResponseStatus err))))
 
   (defn/a ^ServerHandlerResponse reload-channels-list [self ^str _]
-    (.*run-loop
-      self
-      :restart True)
-    ;; TODO: maybe response with done and running tasks?
-    (ServerHandlerResponse
-      :response "restarting"
-      :status (. ResponseStatus ok)))
+    (let [total (len (. self tasks))
+          done (len (lfor t (. self tasks (values)) :if (.done t) t))]
+      (.*run-loop
+        self
+        :restart True)
+      (ServerHandlerResponse
+        :response f"{done}/{total}"
+        :status (. ResponseStatus ok))))
 
 
   (defn/a ^ServerHandlerResponse valid-channel? [self ^str channel]

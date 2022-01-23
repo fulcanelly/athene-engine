@@ -56,6 +56,9 @@ reset interval and recollect statistics
 
 accept no arguments
 
+responses:
+`(?P<done>\d+)/(?P<total>\d+)`
+
 ### exaples
 ```sh
 echo 'valid-channel?@picbtw' | nc 127.0.0.1 42069
@@ -63,6 +66,9 @@ echo 'valid-channel?@picbtw' | nc 127.0.0.1 42069
 
 printf '%s' 'valid-channel?@pic' | nc 127.0.0.1 42069
 # OK:n
+
+echo 'reload-channels-list' | nc 127.0.0.1 42069
+# OK:14/88
 
 echo 'wtf' | nc 127.0.0.1 42069
 # ERR:invlid request
