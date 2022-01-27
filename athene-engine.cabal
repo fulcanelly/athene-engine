@@ -71,6 +71,7 @@ executable athene-engine
     bytestring,
     wreq,
     text,
+    deriving-aeson,
     sqlite-simple >= 0.4.18.0,
     time
   -- hs-source-dirs:

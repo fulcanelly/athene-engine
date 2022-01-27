@@ -2,6 +2,31 @@
 
 {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
+
 
 module API.Telegram where
 
@@ -36,6 +61,9 @@ import Network.HTTP.Simple (getResponseBody)
 import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.STM (newTChan, newTChanIO)
 import Control.Async
+import qualified Data.Text as T
+import Deriving.Aeson 
+import Text.Pretty.Simple (pPrint)
 
 data PhotoEntry = PhotoEntry {
     file_id :: String
@@ -45,14 +73,20 @@ data PhotoEntry = PhotoEntry {
     deriving stock (Show, Generic, Eq)
     deriving anyclass (ToJSON, FromJSON)
 
+
 data From = From {
         id :: Int
-        , first_name :: String
+        , firstName :: Maybe String
         , username :: Maybe String
-        , is_bot :: Bool
+        , isBot :: Maybe Bool
+        , kind :: Maybe String
     }
     deriving stock (Show, Generic, Eq)
-    deriving anyclass (ToJSON, FromJSON)
+    deriving (ToJSON, FromJSON) 
+        via (CustomJSON '[
+                FieldLabelModifier (CamelToSnake, Rename "kind" "type"),
+                SumUntaggedValue ] 
+            From)
 
 data Message = Message {
         message_id :: Int
@@ -60,6 +94,9 @@ data Message = Message {
         , from :: From
         , text :: Maybe String
         , photo :: Maybe [PhotoEntry]
+
+        , forward_from :: Maybe From
+        , forward_from_chat :: Maybe From
     }
     deriving stock (Show, Generic, Eq)
     deriving anyclass (ToJSON, FromJSON)
@@ -140,6 +177,7 @@ getKey key = rightToMaybe . parseEither (key .:)
 getUpdatesJson :: ReqExecutor -> M.Map String String -> IO (V.Vector Update)
 getUpdatesJson exec args = do
     obj <- execArgsTgJson exec GetUpdates args
+     
     let (Just arr) = (fromJust obj `getKey` "result" :: Maybe Array)
     pure $ V.map (\x -> do
             let (Success update) = fromJSON x
