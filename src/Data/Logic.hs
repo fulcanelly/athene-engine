@@ -28,6 +28,8 @@ import Data.Map.Ordered (fromList)
 
 import Data.List.Split (chunksOf)
 import Prelude as P
+import API.ReplyMarkup
+import API.ReplyMarkup (InlineKeyboardButton(IKB))
 
 
 type VoidHashBuilder a = HashBuilder a ()
@@ -52,9 +54,12 @@ buildTable (Free (PutValue k v next)) = MO.fromList [(k,v)] <>| buildTable next
 sendWithKb :: String -> [[String]] -> Scenario ()
 sendWithKb text = eval . SendWith . sendTextNButtonsEntry text
 
+sendWithIKb :: String -> [[InlineKeyboardButton]] -> Scenario ()
+sendWithIKb text = eval . SendWith . sendITextNButtonsEntry text
+
 
 genKb :: MO.OMap e a -> [[e]]
-genKb = chunksOf 3 . keys . assocs 
+genKb = chunksOf 3 . keys . assocs
     where keys = map fst
 
 offerFew :: String -> VoidHashBuilder (Scenario a) -> Scenario a

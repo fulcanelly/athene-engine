@@ -48,6 +48,10 @@ sendTextNButtonsEntry :: String -> [[String]] -> MessageEntry
 sendTextNButtonsEntry text buttons = MessageEntry [
     ("text", text), ("reply_markup", strTreeToButtons buttons)] SendMessage
 
+sendITextNButtonsEntry :: String -> [[InlineKeyboardButton]] -> MessageEntry
+sendITextNButtonsEntry text buttons = MessageEntry [
+    ("text", text), ("reply_markup", ikbToJSON buttons)] SendMessage
+
 sendRemovingKeyboard :: String -> MessageEntry
 sendRemovingKeyboard text = MessageEntry [
         ("text", text), ("reply_markup", toJSONString disableKb)
