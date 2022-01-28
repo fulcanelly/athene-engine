@@ -25,6 +25,7 @@ import Database.SQLite.Simple.Ok (Ok(Ok))
 import Data.ByteString.Lazy (ByteString)
 import Control.Monad
 import Deriving.Aeson
+import qualified Data.Vector as Vector
 
 data SavedEvent
   = Intervened Intervention
@@ -108,8 +109,48 @@ catchRestore = catch
 data Restored a = Restored {
     scenario :: Scenario a,
     level_ :: Int
-  }
+  } | Done (Restored a)
 
+
+restoreV :: Restored a -> Vector.Vector SavedEvent -> Restored a
+restoreV = foldl apply 
+  where
+  apply :: Restored a -> SavedEvent -> Restored a
+  apply Restored{..} event
+    = case scenario of 
+    Pure a -> throw $ CantRestore "can't be pure"
+    Free sf -> case sf of
+      Expect f -> do
+        let (Intervened int) = event
+        case int of 
+          Update up -> case f up of
+            Nothing -> throw $ CantRestore "???"
+            Just fr -> Restored fr level_
+
+          AdvOffers n i -> let adjusted = onPostLike scenario n
+            in Restored adjusted level_
+
+          Stop -> throw $ CantRestore "Stop: Not implemented yet"
+
+      Eval com fr -> 
+        case com of 
+        SendWith me -> Restored fr level_
+        -- since only SendWith emits event then rest should be rewind
+        _ -> apply (Restored fr level_) event
+
+      ReturnIf p fr fr' -> throw $ CantRestore "ReturnIf: can't be done, yet"
+      
+      FindRandPost f -> 
+        let (Posted post) = event in 
+          Restored (f post) level_
+
+      LoadMyPost f -> 
+        let (Posted post) = event in 
+          Restored (f post) level_
+      
+      Clean n fr -> Restored fr n
+  apply (Done r) event = r
+  
 restoreScen :: [SavedEvent] -> Level -> Free ScenarioF a -> Restored a
 restoreScen [] level bot  = case bot of 
   Free (Eval cmd next) -> restoreScen [] level next
