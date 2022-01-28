@@ -1,8 +1,16 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 
 
 module API.ReplyMarkup where
@@ -11,6 +19,7 @@ import Data.Aeson
 import Data.Text.Encoding
 import Data.ByteString.Lazy (toStrict)
 import Data.Text
+import Deriving.Aeson
 
 newtype KeyboardButton = KButton {
         text :: String
@@ -35,13 +44,15 @@ data ReplyKeyboardRemove =
     deriving anyclass (ToJSON, FromJSON)
 
 
-data InlineKeyboardButton = 
-    InlineKeyboardButton {
-        text_ :: String, --- problem !!!!
+data InlineKeyboardButton =
+    IKB {
+        text_ :: String,
         url :: String
-    }
-    deriving stock (Show, Generic)
-    deriving anyclass (ToJSON, FromJSON)
+    } deriving stock (Show, Generic)
+    deriving (ToJSON, FromJSON) via (CustomJSON '[
+        FieldLabelModifier (Rename "text_" "text")]
+        InlineKeyboardButton)
+
 
 newtype InlineKeyboardMarkup =
     InlineKeyboardMarkup {
@@ -50,15 +61,24 @@ newtype InlineKeyboardMarkup =
     deriving stock (Show, Generic)
     deriving anyclass (ToJSON, FromJSON)
 
-textButton = KButton 
+textButton = KButton
 
+markupOfBtn :: [[KeyboardButton]] -> ReplyKeyboardMarkup
 markupOfBtn mark = ReplyKeyboardMarkup (Just mark) False
+
+imarkupOfBtn :: [[InlineKeyboardButton]] -> InlineKeyboardMarkup
+imarkupOfBtn = InlineKeyboardMarkup
 
 kbToJSON :: [[KeyboardButton]] -> String
 kbToJSON = toJSONString . markupOfBtn
 
 
+ikbToJSON :: [[InlineKeyboardButton]] -> String
+ikbToJSON = toJSONString . imarkupOfBtn
+
+
+
 toJSONString :: ToJSON a => a -> String
 toJSONString = unpack . decodeUtf8 . toStrict . encode
 
-disableKb = ReplyKeyboardRemove True Nothing 
+disableKb = ReplyKeyboardRemove True Nothing
