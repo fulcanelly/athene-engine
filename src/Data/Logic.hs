@@ -225,10 +225,13 @@ post = do
             scenario
             post
 
-
-showPost :: AdvPost -> Scenario ()
-showPost Post{..} = eval $ SendWith $ F.sendPhoto _fileId caption []
-    where caption = _title <> "\n\n" <> _link
+showPost Post{..} = eval $ SendWith $ MessageEntry  [
+        ("caption", _title),
+        ("photo", _fileId),
+        ("reply_markup", ikbToJSON [[
+            IKB "Visit channel" _link
+        ]])
+    ] SendPhoto
 
 findS :: Scenario ()
 findS = do
@@ -308,6 +311,7 @@ lobby = do
             post -- `returnOn` "Back"
         when have do
             onText "find" findS
+
      --   onText "review" review
     lobby
 
