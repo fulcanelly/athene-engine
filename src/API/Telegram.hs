@@ -74,32 +74,43 @@ data PhotoEntry = PhotoEntry {
     deriving anyclass (ToJSON, FromJSON)
 
 
-data From = From {
+data Source = User {
         id :: Int
-        , firstName :: Maybe String
-        , username :: Maybe String
+        , firstName :: String
+        , username :: String
         , isBot :: Maybe Bool
+    } | Chat {
+        id :: Int
+        , username :: String
         , kind :: Maybe String
+
     }
     deriving stock (Show, Generic, Eq)
     deriving (ToJSON, FromJSON) 
         via (CustomJSON '[
                 FieldLabelModifier (CamelToSnake, Rename "kind" "type"),
                 SumUntaggedValue ] 
-            From)
+            Source)
 
 data Message = Message {
         message_id :: Int
         , date :: Int
-        , from :: From
+        , from :: Source
         , text :: Maybe String
         , photo :: Maybe [PhotoEntry]
-
-        , forward_from :: Maybe From
-        , forward_from_chat :: Maybe From
+    } 
+    | ForwardedFromChat {
+        message_id :: Int
+        , date :: Int
+        , from :: Source
+        , text :: Maybe String
+        , photo :: Maybe [PhotoEntry]
+        
+        , forward_from_chat :: Source
     }
+    
     deriving stock (Show, Generic, Eq)
-    deriving anyclass (ToJSON, FromJSON)
+    deriving (ToJSON, FromJSON) via (CustomJSON '[SumUntaggedValue ] Message)
 
 data Update =
     Update {

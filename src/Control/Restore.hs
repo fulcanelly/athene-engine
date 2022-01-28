@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DataKinds #-}
 module Control.Restore where
 
 import Control.FreeState
@@ -22,12 +24,14 @@ import Database.SQLite.Simple.FromField (FromField (fromField))
 import Database.SQLite.Simple.Ok (Ok(Ok))
 import Data.ByteString.Lazy (ByteString)
 import Control.Monad
+import Deriving.Aeson
 
 data SavedEvent
   = Intervened Intervention
   | Posted (Maybe AdvPost)
   | Sent
-  deriving (Show, Generic, ToJSON, FromJSON, Eq)
+  deriving (Show, Generic, Eq)
+  deriving (ToJSON, FromJSON) via (CustomJSON '[SumUntaggedValue ] SavedEvent)
 
 instance FromRow SavedEvent where
   fromRow = fromJust . decode <$> field

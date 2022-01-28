@@ -1,4 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DataKinds #-}
 module Data.Context where
 import API.Telegram
 import Control.Concurrent.STM
@@ -11,6 +13,7 @@ import GHC.Generics (Generic)
 import Control.Concurrent.STM.TSem (TSem)
 import Control.FreeState (Command, MessageEntry)
 import Data.IORef (IORef, newIORef)
+import Deriving.Aeson
 
 
 type Target = ChatId 
@@ -28,7 +31,8 @@ data Intervention
     = Update Update
     | AdvOffers OffersCount ChatId 
     | Stop
-    deriving (Show, ToJSON, Generic, FromJSON, Eq)
+    deriving (Show, Generic, Eq)
+    deriving (ToJSON, FromJSON) via (CustomJSON '[SumUntaggedValue ] Intervention)
 
 data SharedState = SharedState {
         tasks :: SQLnTasks
