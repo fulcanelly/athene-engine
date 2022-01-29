@@ -55,8 +55,10 @@ import Data.Posts
 import Database.SQLite.Simple ()
 import GHC.Conc (atomically, readTVar, writeTVar)
 import Data.IORef (newIORef, readIORef, writeIORef)
-import Control.Restore (Restored(level_))
+import Control.Restore (Restored(level_), restoreV)
 import Data.Time (getCurrentTime, diffUTCTime)
+import Data.Vector (fromList)
+import Text.Pretty.Simple (pPrint)
 
 catchAny :: IO a -> (SomeException -> IO a) -> IO a
 catchAny = catch
@@ -198,9 +200,10 @@ deliverMail chatRem ctx cdata inerv  = do
           startScen ctx startBot
 
         else do
+
           startTime <- getCurrentTime
           
-          state <- tryRestoreStateOrLobby (restoreScen tasks 0 startBot) (sqlTasks ctx) chat
+          state <- tryRestoreStateOrLobby (restoreV (Restored startBot 0) (fromList tasks) ) (sqlTasks ctx) chat
           writeIORef (level ctx) (level_ state)
           startScen ctx (scenario state)
           
