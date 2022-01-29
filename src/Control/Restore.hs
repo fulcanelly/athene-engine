@@ -148,7 +148,7 @@ restoreV = foldl apply
         let (Posted post) = event in 
           Restored (f post) level_
       
-      Clean n fr -> Restored fr n
+      Clean n fr -> apply (Restored fr n) event
   apply (Done r) event = r
   
 restoreScen :: [SavedEvent] -> Level -> Free ScenarioF a -> Restored a
