@@ -1,0 +1,51 @@
+version: "3.3"
+
+services:
+  
+  bot:
+    networks: ['mynetwork']
+    build: ./bot
+    volumes:
+      - ./bot:/app
+    depends_on: 
+      - postgres-setup
+    stdin_open: true
+    tty: true
+    restart: always
+    environment:
+      - TG_TOKEN
+      - PG_PASS
+
+  postgres:
+    image: "postgres"
+    networks: ['mynetwork']
+
+    environment:
+      POSTGRES_PASSWORD: $PG_PASS
+
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432 
+
+    restart: always
+
+    stdin_open: true
+    tty: true
+
+  postgres-setup:
+    networks: ['mynetwork']
+    environment:
+      POSTGRES_PASSWORD: $PG_PASS
+
+    build: ./postgres
+    depends_on: 
+      - postgres
+    restart: "no"
+  
+
+
+networks: {
+  mynetwork: {}
+}
+

@@ -1,0 +1,3 @@
+[submodule "tg-toolkit"]
+	path = bot/tg-toolkit
+	url = git@github.com:fulcanelly/tg-toolkit.git
