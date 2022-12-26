@@ -7,6 +7,7 @@ require 'open-uri'
 require 'recursive-open-struct'
 require 'logger'
 require 'colored'
+require 'awesome_print'
 
 require_relative './tg-toolkit/src/autoload'
 
@@ -24,6 +25,35 @@ file_lister = proc do
     list_all_rb_files() 
 end
 
+
+class MyApplication < Application
+
+    def setup_handlers()
+        chan_observer = ChannelInfoObserver.new(self)
+
+        link_observer = ChannelLinkingObserver.new(self)
+        link_observer.setup()
+
+
+        self.pipe.on_my_chat_member do |event|
+            ap event
+            chan_observer.handle_chat_member(event)
+        end
+        
+        self.pipe.on_channel_post do |event| 
+            ap event
+            link_observer.handle_channel_post(event)
+        end
+
+
+        super()
+    end
+
+end
+
+
+CreateAll.new.change
+
 HotReloader.new(file_lister).tap do |reloader|
     reloader.init
     reloader.entry_point do 
@@ -34,7 +64,7 @@ HotReloader.new(file_lister).tap do |reloader|
 
         bot.connect
 
-        Application.new(bot, pipe, provider)
+        MyApplication.new(bot, pipe, provider)
             .tap do |app|
                 app.setup_handlers()
             #   app.run_ctxes()
@@ -45,12 +75,4 @@ HotReloader.new(file_lister).tap do |reloader|
 end
 
 
-bot = Bot.new(token)
-
-TgToolkit.new(
-   bot, EventPipe.new,  ContextProvider.new(bot, StartingState)) 
-   .tap do 
-        _1.setup
-        _1.start
-    end
     
