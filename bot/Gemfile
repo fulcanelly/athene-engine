@@ -4,3 +4,5 @@ gem 'rails'
 gem 'colored'
 gem 'pg'
 gem 'recursive-open-struct'
+
+gem "awesome_print", "~> 1.9"
