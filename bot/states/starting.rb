@@ -4,20 +4,12 @@ class StartingState < BaseState
     def run
         expect_text()
 
-        say("Welcome to athene engine bot")
+        say(_?.starting.welcome)
         
-        say("
-            This bot intended to help channel' owners by simplifying common tasks 
+        say(_?.starting.about_bot)
 
-            Namely: 
-            * Find mutual adverts partners easier
-            * Guarantee post will be keept agreed time 
-            * Automatically post ads based on settings 
-        ".multitrim)
-
-
-        suggest_it("Continue ?")
-            .option("Yes") do end 
+        suggest_it(_?.general.continue?)
+            .option(_?.general.yes_) do end 
             .exec 
         
         switch_state MainMenuState.new

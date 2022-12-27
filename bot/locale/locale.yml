@@ -1,0 +1,25 @@
+ua:
+  starting:
+    welcome: 'Welcome to athene engine bot'
+
+eng:
+
+  general: 
+    continue?: 'Continue ?'
+    #TODO idk why but ruby
+    # yaml parser thinks yes == true
+    # and this breaks RecursiveOpenStruct
+    yes_: 'Yes'
+    no_: 'no'
+
+  starting: 
+    welcome: 
+     Welcome to athene engine bot!
+    
+    about_bot: |
+      This bot intended to help channel' owners by simplifying common tasks 
+
+      Namely: 
+      * Find mutual adverts partners easier
+      * Guarantee post will be kept agreed time 
+      * Automatically post ads based on settings 
