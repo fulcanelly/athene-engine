@@ -1,0 +1,78 @@
+
+
+
+cabal-version:       >=1.10
+tested-with:         GHC ==8.10.7
+category: Bot
+license: GPL-3
+description: the telegram bot for auto mutual channel advertising
+synopsis: How it's different from description?
+name:                athene-engine
+version:             0.1.0.0
+-- synopsis:
+-- description:
+-- bug-reports:
+-- license:
+license-file:        LICENSE
+author:              fulcanelly
+maintainer:          dallasxfulcanelly@gmail.com
+-- copyright:
+-- category:
+build-type:          Simple
+extra-source-files:  CHANGELOG.md, README.md
+
+executable athene-engine
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  other-modules: 
+    Grouping.Activity,
+    UI,
+    Data.Posts,
+    Data.Review,
+    Control.Database,
+    Control.Async,
+    Data.State,
+    API.Telegram,
+    Control.FreeState,
+    API.ReplyMarkup,
+    Data.Logic,
+    Control.TInter,
+    Data.Favorites,
+    Control.Notifications,
+    Data.Context,
+    Control.Restore
+  default-extensions:
+    OverloadedStrings,
+    StandaloneDeriving,
+    DeriveGeneric,
+    DeriveAnyClass,
+    DerivingStrategies,
+    ScopedTypeVariables,
+    NoMonomorphismRestriction,
+    TypeFamilies,
+    OverloadedLists,
+    OverloadedLabels,
+    FlexibleContexts
+  build-depends:       
+    base == 4.14.3.0,
+    pretty-simple,
+    generic-lens,
+    either,
+    http-conduit,
+    stm,
+    aeson,
+    uri-encode,
+    vector,
+    containers,
+    ordered-containers,
+    split,
+    free,
+    lens,
+    bytestring,
+    wreq,
+    text,
+    deriving-aeson,
+    sqlite-simple >= 0.4.18.0,
+    time
+  -- hs-source-dirs:
+  default-language:    Haskell2010

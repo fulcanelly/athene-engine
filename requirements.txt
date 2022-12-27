@@ -1,0 +1,4 @@
+xdg
+Telethon[cryptg]
+SQLAlchemy[aiosqlite]
+git+https://github.com/dm9pZCAq/hy@hy2py-recursive#egg=hy
