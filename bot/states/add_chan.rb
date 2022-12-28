@@ -60,7 +60,9 @@ class PostinSettingsState < BaseState
 
     def run 
         setup_posting_settings()
-        switch_state MainMenuState.new
+        say("Now you need to add first adverts post")
+
+        switch_state AddAdvertsPostState.new
     end
 
     def restart() 
