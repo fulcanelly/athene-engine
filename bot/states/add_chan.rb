@@ -2,7 +2,7 @@
 
 
 
-class PostSettings < BaseState
+class AdvPostingSettings < BaseState
     
 
     def initialize(back) 
@@ -53,17 +53,50 @@ class PostSettings < BaseState
 end
 
 class AddChannelState < BaseState 
- 
 
     def run 
         code = wait_for_linking()
+        name = capture_text_or_cancel(
+            "Add this bot to admins (only `post messages` right needed) in your channel and post this code: #{code}", 
+            "Cancel")
 
-        say "Add this bot to admins (only `post messages` right needed) in your channel and post this code: #{code}"
+        unless name  
+            forget_linking()
+            main_menu()
+        end
+        
+        main_menu()
 
-        name = capture_text_or_cancel("Enter channel name", "Cancel")
+    end
 
-        main_menu() unless name  
+    private
+    
+    def main_menu() 
+        switch_state MainMenuState.new
+    end
 
+end
+
+
+class ContinueAddingChannelState < BaseState
+
+    attr_accessor :chan_id
+
+    def initialize(chan_id)
+        @chan_id = chan_id
+    end
+
+    def run 
+        say "You linked with channel: #{ Channel.find_by(chat_id: chan_id).title }"
+        expect_text
+        switch_state MainMenuState.new
+    end
+end
+
+
+class SetupChannelCategoryState < BaseState
+    def run 
+    
         category = suggest_it("Select channel category")
             .option("Personal blog") do end 
             .option("Entertaining") do end
@@ -75,15 +108,8 @@ class AddChannelState < BaseState
         say "Link channel with bot: todo"
 
         switch_state(
-            PostSettings.new(
+            AdvPostingSettings.new(
                 MainMenuState.new))
     end
 
-    private
-    
-  
-
-    def main_menu() 
-        switch_state MainMenuState.new
-    end
 end

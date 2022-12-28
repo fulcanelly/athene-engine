@@ -83,8 +83,18 @@ class LinkingDoneState < BaseState
 
     #TODO
     def run 
-        say "you linked with channel #{chan_id}"
-        switch_state MainMenuState.new
+        me = myself
+        escape do 
+            me.update(
+                channels: [
+                    *me.channels, 
+                    Channel.find_by(chat_id: chan_id)
+                ].uniq do _1.chat_id end 
+            )
+        end
+
+        switch_state ContinueAddingChannelState.new(chan_id)
+
     end
 
 end
