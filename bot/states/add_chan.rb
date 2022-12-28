@@ -1,12 +1,66 @@
 
+class AddChannelState < BaseState 
 
+    def run 
+        code = wait_for_linking()
+        name = capture_text_or_cancel(
+            "Add this bot to admins (only `post messages` right needed) in your channel and post this code: #{code}", 
+            "Cancel")
 
+        unless name  
+            forget_linking()
+            main_menu()
+        end
+        
+        main_menu()
 
-class AdvPostingSettings < BaseState
+    end
+
+    private
     
+    def main_menu() 
+        switch_state MainMenuState.new
+    end
 
-    def initialize(back) 
-        @back = __clean_state(back) 
+end
+
+
+class ContinueAddingChannelState < BaseState
+
+    attr_accessor :chan_id
+
+    def initialize(chan_id)
+        @chan_id = chan_id
+    end
+
+    def run 
+        say "You linked with channel: #{ Channel.find_by(chat_id: chan_id).title }"
+        switch_state CategorySettingsState.new()
+    end
+end
+
+
+class CategorySettingsState < BaseState
+
+    def run 
+        suggest_it("Select channel category")
+            .option("Personal blog") do end 
+            .option("Entertaining") do end
+            .option("News") do end 
+            .option("18+ ") do end
+            .option("Other") do end 
+            .exec()
+
+        switch_state PostinSettingsState.new
+    end
+
+end
+
+class PostinSettingsState < BaseState 
+
+    def run 
+        setup_posting_settings()
+        switch_state MainMenuState.new
     end
 
     def restart() 
@@ -45,71 +99,5 @@ class AdvPostingSettings < BaseState
     end
 
 
-    def run 
-        setup_posting_settings()
-        switch_state @back
-    end
-
 end
 
-class AddChannelState < BaseState 
-
-    def run 
-        code = wait_for_linking()
-        name = capture_text_or_cancel(
-            "Add this bot to admins (only `post messages` right needed) in your channel and post this code: #{code}", 
-            "Cancel")
-
-        unless name  
-            forget_linking()
-            main_menu()
-        end
-        
-        main_menu()
-
-    end
-
-    private
-    
-    def main_menu() 
-        switch_state MainMenuState.new
-    end
-
-end
-
-
-class ContinueAddingChannelState < BaseState
-
-    attr_accessor :chan_id
-
-    def initialize(chan_id)
-        @chan_id = chan_id
-    end
-
-    def run 
-        say "You linked with channel: #{ Channel.find_by(chat_id: chan_id).title }"
-        expect_text
-        switch_state MainMenuState.new
-    end
-end
-
-
-class SetupChannelCategoryState < BaseState
-    def run 
-    
-        category = suggest_it("Select channel category")
-            .option("Personal blog") do end 
-            .option("Entertaining") do end
-            .option("News") do end 
-            .option("18+ ") do end
-            .option("Other") do end 
-            .exec()
-
-        say "Link channel with bot: todo"
-
-        switch_state(
-            AdvPostingSettings.new(
-                MainMenuState.new))
-    end
-
-end
