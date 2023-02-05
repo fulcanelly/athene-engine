@@ -6,3 +6,4 @@ gem 'pg'
 gem 'recursive-open-struct'
 
 gem "awesome_print", "~> 1.9"
+gem 'faker'
