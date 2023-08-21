@@ -10,18 +10,19 @@ export type ChannelProps = {
     channel_id: string;
 };
 
+
+interface CommonRelationProps {
+    created_at: string
+
+}
+
 export interface ChannelRelatedNodesI {
     notificated: ModelRelatedNodesI<typeof Notification, NotificationInstance>
 
-    posts: ModelRelatedNodesI<typeof Post, PostInstance, {
-        created_at: string
-    }>;
-    likes: ModelRelatedNodesI<typeof Channel, ChannelInstance, {
-        created_at: string
-    }>;
-    dislikes: ModelRelatedNodesI<typeof Channel, ChannelInstance, {
-        created_at: string
-    }>;
+    posts: ModelRelatedNodesI<typeof Post, PostInstance, CommonRelationProps>;
+    likes: ModelRelatedNodesI<typeof Channel, ChannelInstance, CommonRelationProps>;
+    dislikes: ModelRelatedNodesI<typeof Channel, ChannelInstance, CommonRelationProps>;
+    partners: ModelRelatedNodesI<typeof Channel, ChannelInstance, CommonRelationProps>
     user: ModelRelatedNodesI<typeof User, UserInstance>;
 }
 
@@ -76,6 +77,7 @@ export const Channel = ModelFactory<ChannelProps, ChannelRelatedNodesI, {}, Chan
                     }
                 })
             },
+
 
             async findPartner(): Promise<ChannelInstance | undefined> {
                 const result = await new QueryBuilder()

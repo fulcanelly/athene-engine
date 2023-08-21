@@ -31,6 +31,7 @@ export interface NotificationStatics {
         to_notify_chan_id: string, new_partner_chan_id: string
     }): Promise<NotificationInstance>
 }
+
 export const Notification = ModelFactory<NotificationProps, NotificationRelatedNodesI, NotificationStatics>(
     {
         label: 'Notification',

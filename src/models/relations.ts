@@ -40,6 +40,20 @@ Channel.addRelationships({
 
 // Channel to User (reverse)
 Channel.addRelationships({
+    partners: {
+        model: Channel,
+        direction: 'out',
+        name: 'PARTERNS_WITH',
+        properties: {
+            created_at: {
+                property: 'created_at' as any,
+                schema: {
+                    type: 'any',
+                    required: true
+                }
+            }
+        }
+    },
     user: {
         model: User,
         direction: 'in',
