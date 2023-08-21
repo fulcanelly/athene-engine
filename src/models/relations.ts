@@ -19,27 +19,6 @@ Channel.addRelationships({
         direction: 'in',
         name: 'CHANNEL_TO_NOTIFY'
     },
-    post_templates: {
-        model: PostTemplate,
-        direction: 'in',
-        name: 'HAS_POST_TEMPLATE',
-    },
-    likes: {
-        model: Channel,
-        direction: 'out',
-        name: 'LIKES',
-    },
-    dislikes: {
-        model: Channel,
-        direction: 'out',
-        name: 'DISLIKES',
-    },
-});
-
-
-
-// Channel to User (reverse)
-Channel.addRelationships({
     partners: {
         model: Channel,
         direction: 'out',
