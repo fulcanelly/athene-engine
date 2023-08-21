@@ -1,5 +1,5 @@
 import { ModelFactory, ModelRelatedNodesI, NeogmaInstance, QueryBuilder, QueryRunner } from 'neogma';
-import { Post, PostInstance } from './post';
+import { PostTemplate, PostTemplateInstance } from './post_template';
 import { neogma } from '../neo4j';
 import { User, UserInstance } from './user';
 import { NotificationInstance, Notification } from './notification';
@@ -19,7 +19,7 @@ interface CommonRelationProps {
 export interface ChannelRelatedNodesI {
     notificated: ModelRelatedNodesI<typeof Notification, NotificationInstance>
 
-    posts: ModelRelatedNodesI<typeof Post, PostInstance, CommonRelationProps>;
+    post_templates: ModelRelatedNodesI<typeof PostTemplate, PostTemplateInstance, CommonRelationProps>;
     likes: ModelRelatedNodesI<typeof Channel, ChannelInstance, CommonRelationProps>;
     dislikes: ModelRelatedNodesI<typeof Channel, ChannelInstance, CommonRelationProps>;
     partners: ModelRelatedNodesI<typeof Channel, ChannelInstance, CommonRelationProps>

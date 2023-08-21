@@ -1,7 +1,7 @@
 import { ModelRelatedNodesI } from "neogma";
 import { Channel, ChannelInstance } from "./channel";
 import { Notification } from "./notification";
-import { Post } from "./post";
+import { PostTemplate } from "./post_template";
 import { User } from "./user";
 
 // Relationships
@@ -19,10 +19,10 @@ Channel.addRelationships({
         direction: 'in',
         name: 'CHANNEL_TO_NOTIFY'
     },
-    posts: {
-        model: Post,
-        direction: 'out',
-        name: 'HAS_POST',
+    post_templates: {
+        model: PostTemplate,
+        direction: 'in',
+        name: 'HAS_POST_TEMPLATE',
     },
     likes: {
         model: Channel,
@@ -59,10 +59,10 @@ Channel.addRelationships({
         direction: 'in',
         name: 'HAS_CHANNEL',
     },
-    posts: {
-        model: Post,
+    post_templates: {
+        model: PostTemplate,
         direction: 'out',
-        name: 'HAS_POST',
+        name: 'HAS_POST_TEMPLATE',
     },
     likes: {
         model: Channel,
@@ -95,7 +95,7 @@ Channel.addRelationships({
 });
 
 // Post to Channel (reverse)
-Post.addRelationships({
+PostTemplate.addRelationships({
     channel: {
         model: Channel,
         direction: 'in',
