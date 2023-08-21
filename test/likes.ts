@@ -7,19 +7,6 @@ import { Channel } from '../src/models/channel';
 import { neogma } from '../src/neo4j';
 import { deleteAll } from './helperts';
 
-const channelService = {
-    getNewChannelToReview() {
-        return {
-            name: ''
-        }
-    }
-
-}
-
-
-
-const fixedDate = new Date('2023-08-20T12:00:00');
-
 export const makeChannelRatingTest = () => describe('Channel rating',  () => {
 
     beforeAll(()=> {
