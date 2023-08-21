@@ -102,7 +102,8 @@ class ChannelPartnerService implements ChannelPartnerServiceI {
 
     }
 }
-describe('Channel partner service', () => {
+
+export const makeChannelPartnersServiceTest = () => describe('Channel partner service', () => {
 
     beforeEach(deleteAll)
 

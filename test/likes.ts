@@ -1,4 +1,4 @@
-import { describe, it, expect, test, beforeAll, beforeEach} from '@jest/globals';
+import { describe, it, expect, test, beforeAll, beforeEach, afterAll} from '@jest/globals';
 import * as jest from '@jest/core';
 
 import { QueryBuilder } from 'neogma';
@@ -20,7 +20,7 @@ const channelService = {
 
 const fixedDate = new Date('2023-08-20T12:00:00');
 
-describe('Channel rating',  () => {
+export const makeChannelRatingTest = () => describe('Channel rating',  () => {
 
     beforeAll(()=> {
 
