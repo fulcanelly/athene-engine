@@ -1,8 +1,9 @@
-import { ModelRelatedNodesI } from "neogma";
-import { Channel, ChannelInstance } from "./channel";
+import { ModelRelatedNodesI, RelationshipPropertiesI, RelationshipsI } from "neogma";
+import { Channel, ChannelInstance, ChannelRelatedNodesI } from "./channel";
 import { Notification } from "./notification";
-import { PostTemplate } from "./post_template";
-import { User } from "./user";
+import { PostTemplate, PostTemplateRelatedNodesI } from "./post_template";
+import { User, UserRelatedNodesI } from "./user";
+import { PostLog } from "./post_log";
 
 // Relationships
 User.addRelationships({
@@ -22,7 +23,7 @@ Channel.addRelationships({
     partners: {
         model: Channel,
         direction: 'out',
-        name: 'PARTERNS_WITH',
+        name: 'PARTNERS_WITH', //PARTERNS_WITH
         properties: {
             created_at: {
                 property: 'created_at' as any,
@@ -73,14 +74,10 @@ Channel.addRelationships({
     },
 });
 
-// Post to Channel (reverse)
-PostTemplate.addRelationships({
-    channel: {
-        model: Channel,
-        direction: 'in',
-        name: 'HAS_POST',
-    },
-});
+
+
+
+
 
 Notification.addRelationships({
     channel_to_notify: {

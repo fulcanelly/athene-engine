@@ -5,9 +5,10 @@ import { QueryBuilder } from 'neogma';
 import { Channel } from '../src/models/channel';
 
 import { neogma } from '../src/neo4j';
-import { deleteAll } from './helperts';
+import { defaultChannelParams, deleteAll } from './helperts';
 
 export const makeChannelRatingTest = () => describe('Channel rating',  () => {
+
 
     beforeAll(()=> {
 
@@ -22,23 +23,27 @@ export const makeChannelRatingTest = () => describe('Channel rating',  () => {
     it('should get a channel that is not rated yet', async () => {
         console.log('start')
         const a = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '1',
-            uuid: 'a'
+            uuid: 'a',
         })
 
         const b = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '2',
-            uuid: 'b'
+            uuid: 'b',
         })
 
         const c = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '3',
-            uuid: 'c'
+            uuid: 'c',
         })
 
         const d = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '4',
-            uuid: 'd'
+            uuid: 'd',
         })
 
         await a.like(b);
@@ -57,13 +62,15 @@ export const makeChannelRatingTest = () => describe('Channel rating',  () => {
 
     it('should create notification when channel is liked', async () => {
         const a = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '1',
-            uuid: 'a'
+            uuid: 'a',
         })
 
         const b = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '2',
-            uuid: 'b'
+            uuid: 'b',
         })
 
         await a.like(b)

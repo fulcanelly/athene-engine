@@ -38,8 +38,8 @@ export const Notification = ModelFactory<NotificationProps, NotificationRelatedN
         statics: {
             async create({ action, channel_id }): Promise<NotificationInstance> {
                 return await Notification.createOne({
-                    created_at: new Date().toString(),
-                    updated_at: new Date().toString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
                     done: false,
                     action: action,
                     uuid: uuidv4(),
@@ -53,8 +53,8 @@ export const Notification = ModelFactory<NotificationProps, NotificationRelatedN
 
             async createNewPartnerNotification({ new_partner_chan_id, to_notify_chan_id }): Promise<NotificationInstance> {
                 return await Notification.createOne({
-                    created_at: new Date().toString(),
-                    updated_at: new Date().toString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
                     done: false,
                     action: 'new_partnership',
                     uuid: uuidv4(),
@@ -77,8 +77,8 @@ export const Notification = ModelFactory<NotificationProps, NotificationRelatedN
 
             async createLikeNotification({ liked_by_chan_id, target_chan_id }): Promise<NotificationInstance> {
                 return await Notification.createOne({
-                    created_at: new Date().toString(),
-                    updated_at: new Date().toString(),
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
                     done: false,
                     action: 'new_like',
                     uuid: uuidv4(),

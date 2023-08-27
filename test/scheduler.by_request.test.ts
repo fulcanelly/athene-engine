@@ -7,7 +7,8 @@ import { neogma } from '../src/neo4j';
 import { ChannelPartnerService } from '../src/services/chan_partners';
 import timekeeper from 'timekeeper';
 import moment from 'moment';
-import { PostTemplate, PostTemplateInstance } from '../src/models/post_template';
+import { PostTemplate } from '../src/models/post_template';
+import { PostLog } from '../src/models/post_log';
 
 class PostingSchedulerService {
     constructor() {
@@ -16,7 +17,6 @@ class PostingSchedulerService {
 
     async handle(): Promise<void> {
         await this.handleReadyToPost()
-
     }
 
     protected async handleReadyToPost() {
@@ -26,30 +26,7 @@ class PostingSchedulerService {
     }
 }
 
-class PostingService {
-
-    public async post(channel: ChannelInstance, post: PostTemplateInstance) {
-        //TODO telegram
-        //TODO add log
-    }
-
-
-}
-
 export const makePostingTests = () => describe('Mutual ads posting of few partners channels', () => {
-    const fixedTime = new Date('2093-08-21T21:42:06.583Z')
-    beforeEach(() => {
-        timekeeper.freeze(fixedTime);
-    })
-
-    it('Creates channels with posting settings', async () => {
-        await Channel.createOne({
-            uuid: '0',
-            channel_id: '0',
-            posting_settings_type: 'by_count'
-        })
-    })
-
     let a: ChannelInstance, b: ChannelInstance
 
     beforeEach(async () => {
@@ -99,38 +76,6 @@ export const makePostingTests = () => describe('Mutual ads posting of few partne
         await new ChannelPartnerService().createNewPartnersIfPresent()
     })
 
-    describe('With time settings', () => {
-
-
-
-        describe('When no posting logs yet', () => {
-            it('Schedules posts immediately', async() => {
-                await new PostingSchedulerService().handle()
-                // TODO expect scheduled posts for both at fixedTime
-            })
-        })
-
-        describe('When last post was just now', () => {
-            it('Schedules post to shifted time', async () => {
-                await new PostingSchedulerService().handle()
-                // TODO expect scheduled post at
-                moment().add(3, 'hours').fromNow()
-
-            })
-        })
-
-        describe('When one of channels posted just now but other not', () => {
-            it('Schedules post to shifted time', async () => {
-
-            })
-        })
-
-    })
-
-    describe('With post by count settings', () => {
-
-    })
-
     describe('With post by request', () => {
         describe('When no posting logs', () => {
             it('Submits new posts and creates logs', async () => {
@@ -140,25 +85,44 @@ export const makePostingTests = () => describe('Mutual ads posting of few partne
 
                 await new PostingSchedulerService().handle()
 
-                for await (const ch of Channel.findReadyForMutualAdverts()) {
-                    console.log(ch)
-                }
+                // for await (const ch of Channel.findReadyForMutualAdverts()) {
+                //     console.log(ch)
+                // }
+
+
+                const result3 = await new QueryBuilder()
+                    .match({
+                        related: [
+                            {
+                                model: Channel,
+                                identifier: 'start',
+                                where: {
+                                    channel_id: b.channel_id
+                                }
+                            },
+                            {
+                                ...Channel.getRelationshipByAlias('post_templates'),
+                                identifier: 'rel',
+                                direction: 'none',
+                            },
+                            {
+                                model: PostLog,
+                                identifier: 'end',
+                                where: {
+                                    channel_id: a.channel_id
+                                }
+                            }
+                        ]
+                    })
+                    .return(['start', 'rel', 'end'])
+                    .run(neogma.queryRunner)
 
 
 
+                expect(2)
             })
         })
     })
-
-    describe('When posting limit per day reached', () => {
-
-    })
-
-
-    it("returns time", async () => {
-        console.log(moment().add(5, 'minutes').toDate())
-        console.log(new Date())
-    })
-
 })
 
+makePostingTests()

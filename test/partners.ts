@@ -1,5 +1,5 @@
 import { describe, it, expect, test, beforeAll, beforeEach } from '@jest/globals';
-import { deleteAll } from './helperts';
+import { defaultChannelParams, deleteAll } from './helperts';
 import { Channel, ChannelInstance, ChannelProps } from '../src/models/channel';
 import { Notification, NotificationProps } from '../src/models/notification';
 import { QueryBuilder, QueryRunner } from 'neogma';
@@ -15,13 +15,15 @@ export const makeChannelPartnersServiceTest = () => describe('Channel partner se
     it('when two channels liked each other, notifcation & partner created for both', async () => {
 
         const a = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '1',
-            uuid: 'a'
+            uuid: 'a',
         })
 
         const b = await Channel.createOne({
+            ...defaultChannelParams,
             channel_id: '2',
-            uuid: 'b'
+            uuid: 'b',
         })
 
         await a.like(b)

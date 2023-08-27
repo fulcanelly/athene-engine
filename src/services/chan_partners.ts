@@ -4,8 +4,6 @@ import { Notification } from "../models/notification";
 import { neogma } from "../neo4j";
 
 interface ChannelPartnerServiceI {
-
-    detectToBePartners(): Promise<ChannelInstance[]>;
     createNewPartnersIfPresent(): Promise<void>;
 }
 
@@ -47,7 +45,7 @@ export class ChannelPartnerService implements ChannelPartnerServiceI {
         return
     }
 
-    async detectToBePartners(): Promise<ChannelInstance[]> {
+    private async detectToBePartners(): Promise<ChannelInstance[]> {
 
         //check channels that likes each other
         const result = await new QueryBuilder()
@@ -77,7 +75,7 @@ export class ChannelPartnerService implements ChannelPartnerServiceI {
                     }
                 ]
             })
-            .where('NOT (a)-[:PARTERNS_WITH]-(b)')
+            .where('NOT (a)-[:PARTNERS_WITH]-(b)')
             .return(['a', 'b'])
             .limit(1)
             .run(neogma.queryRunner)
