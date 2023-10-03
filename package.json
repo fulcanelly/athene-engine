@@ -10,6 +10,7 @@
     "@sentry/node": "^7.64.0",
     "@types/node": "^20.5.1",
     "amqplib": "^0.10.3",
+    "dotenv": "^16.3.1",
     "jest": "^29.6.2",
     "moment": "^2.29.4",
     "neogma": "^1.12.0",
