@@ -8,6 +8,16 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    services:
+        neo4j:
+            image: neo4j:latest
+            ports:
+                - 7474:7474
+                - 7687:7687
+            env:
+                NEO4J_AUTH: neo4j/password
+
+
     steps:
       - uses: actions/checkout@v2
       - name: Setup Node.js
@@ -17,6 +27,9 @@ jobs:
 
       - name: Install dependencies
         run: yarn
+
+      - run: cp .env.example .env
+
 
       - name: Run tests
         run: yarn run jest test/all.test.ts
