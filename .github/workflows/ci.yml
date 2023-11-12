@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: baptouuuu/setup-neo4j@v1.2.0
         with:
-          tag: '3.4' # optional 
+          tag: '5.13' # optional 
       
       - uses: actions/checkout@v2
       - name: Setup Node.js
