@@ -21,7 +21,8 @@ jobs:
       - uses: baptouuuu/setup-neo4j@v1.2.0
         with:
           tag: '4.4' # optional 
-      
+          password: neo4j
+          
       - uses: actions/checkout@v2
       - name: Setup Node.js
         uses: actions/setup-node@v2
