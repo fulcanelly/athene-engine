@@ -34,8 +34,8 @@ jobs:
 
       - run: cp .env.example .env
 
-      # - name: Wait for Neo4j to start
-      #   run: |
+      - name: Wait for Neo4j to start
+        run: sleep 220
       #       while ! nc -z localhost 7687; do
       #       sleep 1
       #       done
