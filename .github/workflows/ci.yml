@@ -23,19 +23,20 @@ jobs:
       #     tag: '4.4' # optional
       #     password: neo4j
 
-      # - uses: actions/checkout@v2
-      # - name: Setup Node.js
-      #   uses: actions/setup-node@v2
-      #   with:
-      #     node-version: '19.x'
+      - uses: actions/checkout@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '19.x'
 
-      # - name: Install dependencies
-      #   run: yarn
+      - name: Install dependencies
+        run: yarn
 
-      - run: |
-          echo "Using secret: $NEO4J_HOST"
+      - run: yarn run jest test/all.test.ts
         env:
           NEO4J_HOST: ${{ secrets.NEO4J_HOST }}
+          NEO4J_USERNAME: 'neo4j'
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
 
       # - run: cp .env.example .env
 

@@ -6,10 +6,10 @@ import * as dotenv from 'dotenv';
 function neogmaConfig() {
     const parsed = dotenv.config().parsed
 
-    if (parsed) {
+    if (process.env.NEO4J_HOST) {
         return {
-            url: 'bolt://' + process.env.NEO4J_HOST,
-            username: parsed.NEO4J_USERNAME as string,
+            url: process.env.NEO4J_HOST as string,
+            username: process.env.NEO4J_USERNAME as string,
             password: process.env.NEO4J_PASSWORD as string,
         }
     } else {
