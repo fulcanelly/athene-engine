@@ -35,7 +35,7 @@ jobs:
       - run: |
           echo "Using secret: $NEO4J_HOST"
         env:
-          NEO4J_HOST: ${{ secrets.NEO4J_HOST }}
+          NEO4J_HOST: ${{ secrets.NEO4J_HOST___ }}
 
       # - run: cp .env.example .env
 
