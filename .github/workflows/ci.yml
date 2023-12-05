@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - run: yarn run jest test/all.test.ts
+      - run: yarn run jest test/all.test.ts --forceExit
         env:
           NEO4J_HOST: ${{ secrets.NEO4J_HOST }}
           NEO4J_USERNAME: 'neo4j'
