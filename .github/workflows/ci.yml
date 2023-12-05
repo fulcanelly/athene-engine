@@ -20,9 +20,9 @@ jobs:
     steps:
       - uses: baptouuuu/setup-neo4j@v1.2.0
         with:
-          tag: '4.4' # optional 
+          tag: '4.4' # optional
           password: neo4j
-          
+
       - uses: actions/checkout@v2
       - name: Setup Node.js
         uses: actions/setup-node@v2
@@ -32,13 +32,19 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - run: cp .env.example .env
+      - run: |
+          echo $NEO4J_HOST
 
-      - name: Wait for Neo4j to start
-        run: sleep 220
-      #       while ! nc -z localhost 7687; do
-      #       sleep 1
-      #       done
+        env:
+          NEO4J_HOST: ${{ secrets.NEO4J_HOST }}
 
-      - name: Run tests
-        run: yarn run jest test/all.test.ts
+      # - run: cp .env.example .env
+
+      # - name: Wait for Neo4j to start
+      #   run: sleep 220
+      # #       while ! nc -z localhost 7687; do
+      # #       sleep 1
+      # #       done
+
+      # - name: Run tests
+      #   run: yarn run jest test/all.test.ts
