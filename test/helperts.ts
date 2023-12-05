@@ -25,7 +25,7 @@ export async function deleteAll() {
                 }
             ]
         })
-        .delete('a, b, c')
+        .raw('DETACH DELETE a, b, c')
         .run(neogma.queryRunner)
 }
 
