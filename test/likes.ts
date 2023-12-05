@@ -16,7 +16,7 @@ export const makeChannelRatingTest = () => describe('Channel rating',  () => {
 
     beforeEach(async () => {
         console.log("CLEANING BASE")
-        deleteAll()
+        await deleteAll()
         console.log('done')
     }, 100_000)
 

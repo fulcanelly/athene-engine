@@ -4,29 +4,7 @@ import '../src/models/relations';
 import { neogma } from '../src/neo4j';
 
 export async function deleteAll() {
-    await new QueryBuilder()
-        .match({
-            model: Channel,
-            identifier: 'a'
-        })
-        .match({
-            optional: true,
-            related: [
-                {
-                    model: Channel,
-                    identifier: 'a'
-                },
-                {
-                    direction: 'none',
-                    identifier: 'b'
-                },
-                {
-                    identifier: 'c'
-                }
-            ]
-        })
-        .raw('DETACH DELETE a, b, c')
-        .run(neogma.queryRunner)
+    await neogma.queryRunner.run("MATCH (a:Channel) DETACH DELETE a")
 }
 
 export const defaultChannelParams = {
